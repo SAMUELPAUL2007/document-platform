@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DocFlow
 
-## Getting Started
+Free online document tools — convert, edit, merge, compress, and share PDF files. No signup required. No watermarks. No AI processing.
 
-First, run the development server:
+## Features
+
+- **PDF Operations:** Merge, split, compress, rotate, reorder, delete/duplicate pages, protect with password
+- **PDF Conversion:** PDF to Word, Excel, PowerPoint, JPG, PNG; Office documents to PDF
+- **OCR:** Extract text from existing PDF text layers
+- **Images to PDF:** Convert multiple images into a single PDF
+- **Document Editor:** Rich text editor with export to DOCX
+- **Spreadsheet Editor:** Excel-like editor with formula support
+- **Presentation Editor:** Create and export presentations to PPTX
+
+## Tech Stack
+
+- Next.js 16 (App Router)
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- pdf-lib, pdfjs-dist, mammoth, docx, xlsx, pptxgenjs
+
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Commands
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Production build |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run test` | Run test suite |
+| `npm run typecheck` | TypeScript type checking |
 
-## Learn More
+## Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+All optional — the application works with zero configuration.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TEMP_DIR` | `{cwd}/.tmp` | Temporary file storage directory |
+| `MAX_FILE_SIZE` | `104857600` (100MB) | Maximum upload size in bytes |
+| `MAX_CONCURRENT_JOBS` | `4` | Maximum parallel processing slots |
+| `RATE_LIMIT_HEAVY_MAX` | `10` | Requests per minute for heavy tools |
+| `RATE_LIMIT_NORMAL_MAX` | `15` | Requests per minute for normal tools |
+| `RATE_LIMIT_DEFAULT_MAX` | `20` | Default rate limit |
+| `RATE_LIMIT_DOWNLOAD_MAX` | `60` | Download rate limit |
+| `RATE_LIMIT_JOB_STATUS_MAX` | `30` | Job status check rate limit |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window (ms) |
+| `NEXT_PUBLIC_SITE_URL` | `https://docflow.app` | Canonical site URL for SEO |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Optional Dependencies
 
-## Deploy on Vercel
+- **qpdf** — Required for PDF password protection (protect-pdf tool)
+- **LibreOffice** — Required for office format conversion (DOCX/XLSX/PPTX to/from PDF)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Without these, the application starts safely and affected tools return clear error messages.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+### Requirements
+
+- Node.js 18+
+- Writable filesystem (for `.tmp/` directory)
+- Long-running Node process (in-memory job state)
+- Subprocess support (if qpdf/LibreOffice are installed)
+
+### Architecture
+
+- **Single-instance** — job state and rate limits are in-memory
+- **No database** — files are temporary, jobs auto-expire
+- **No API keys required** — all processing is local
+
+### Production Start
+
+```bash
+npm install
+npm run build
+npm run start
+```
+
+The server starts on port 3000 by default. Override with `PORT` environment variable.
+
+## License
+
+Private — all rights reserved.

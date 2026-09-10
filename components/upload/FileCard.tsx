@@ -1,0 +1,131 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { formatFileSize, getFileExtension } from "@/lib/file-utils";
+
+interface FileCardProps {
+  file: File;
+  onRemove?: () => void;
+  status?: "pending" | "uploading" | "processing" | "complete" | "error";
+  progress?: number;
+}
+
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "bmp"]);
+
+const extColors: Record<string, string> = {
+  pdf: "bg-red-100 text-red-600",
+  doc: "bg-blue-100 text-blue-600",
+  docx: "bg-blue-100 text-blue-600",
+  jpg: "bg-green-100 text-green-600",
+  jpeg: "bg-green-100 text-green-600",
+  png: "bg-purple-100 text-purple-600",
+  webp: "bg-purple-100 text-purple-600",
+  ppt: "bg-orange-100 text-orange-600",
+  pptx: "bg-orange-100 text-orange-600",
+};
+
+const statusConfig = {
+  pending: { label: "Ready", color: "text-muted-foreground" },
+  uploading: { label: "Uploading", color: "text-primary" },
+  processing: { label: "Processing", color: "text-accent" },
+  complete: { label: "Done", color: "text-success" },
+  error: { label: "Failed", color: "text-danger bg-danger/10 border border-danger" },
+};
+
+function ImageThumbnail({ file }: { file: File }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const srcRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    srcRef.current = url;
+    setSrc(url);
+    return () => {
+      if (srcRef.current) {
+        URL.revokeObjectURL(srcRef.current);
+        srcRef.current = null;
+      }
+    };
+  }, [file]);
+
+  if (!src) return null;
+
+  return (
+    <img
+      src={src}
+      alt={`Preview of ${file.name}`}
+      className="w-10 h-10 rounded-lg object-cover shrink-0"
+    />
+  );
+}
+
+export default function FileCard({
+  file,
+  onRemove,
+  status = "pending",
+  progress = 0,
+}: FileCardProps) {
+  const ext = getFileExtension(file.name);
+  const colorClass = extColors[ext] || "bg-muted text-muted-foreground";
+  const statusInfo = statusConfig[status];
+  const isImage = IMAGE_EXTENSIONS.has(ext);
+
+  return (
+    <div className={`group flex items-center gap-3 p-3 rounded-xl border ${status === "error" ? "border-danger bg-danger/5" : "border-border"} bg-white hover:shadow-sm transition-all duration-150`}>
+      {isImage ? (
+        <ImageThumbnail file={file} />
+      ) : (
+        <div
+          className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold uppercase shrink-0 ${colorClass}`}
+        >
+          {ext}
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
+          <span className="text-xs text-muted-foreground">&middot;</span>
+          <span className={`text-xs font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
+        </div>
+        {(status === "uploading" || status === "processing") && (
+          <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+              role="progressbar"
+              aria-valuenow={Math.round(progress)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`File ${status === "uploading" ? "upload" : "processing"} progress`}
+            />
+          </div>
+        )}
+      </div>
+
+      {status === "complete" && (
+        <div className="w-8 h-8 rounded-full bg-success-light flex items-center justify-center shrink-0">
+          <svg className="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+        </div>
+      )}
+
+      {onRemove && status === "pending" && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center transition-all cursor-pointer shrink-0 sm:opacity-0 sm:group-hover:opacity-100"
+          aria-label={`Remove ${file.name}`}
+        >
+          <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
