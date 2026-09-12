@@ -1,4 +1,4 @@
-const STORAGE_KEY = "docflow_recent_activity";
+const STORAGE_KEY = "docvanta_recent_activity";
 const MAX_ENTRIES = 10;
 const ENTRY_TTL_MS = 24 * 60 * 60 * 1000;
 

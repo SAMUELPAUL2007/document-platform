@@ -78,9 +78,9 @@ describe("ToolPage", () => {
       expect(screen.getByText("Drag & drop files here")).toBeTruthy();
     });
 
-    it("does not show process button when no files selected", () => {
+    it("does not show convert button when no files selected", () => {
       render(<ToolPage tool={MOCK_TOOL} />);
-      expect(screen.queryByText("Start Compress PDF")).toBeNull();
+      expect(screen.queryByText("Convert")).toBeNull();
     });
 
     it("renders how it works section", () => {
@@ -96,11 +96,11 @@ describe("ToolPage", () => {
   });
 
   describe("file selection", () => {
-    it("shows process button after file is selected", () => {
+    it("shows convert button after file is selected", () => {
       render(<ToolPage tool={MOCK_TOOL} />);
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
-      expect(screen.getByText("Start Compress PDF")).toBeTruthy();
+      expect(screen.getByText("Convert")).toBeTruthy();
     });
 
     it("shows file card with filename after selection", () => {
@@ -108,6 +108,13 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile("document.pdf"));
       expect(screen.getByText("document.pdf")).toBeTruthy();
+    });
+
+    it("hides dropzone after files are selected", () => {
+      render(<ToolPage tool={MOCK_TOOL} />);
+      const input = screen.getByLabelText("Upload files") as HTMLInputElement;
+      selectFile(input, makeFile());
+      expect(screen.queryByText("Drag & drop files here")).toBeNull();
     });
   });
 
@@ -121,10 +128,10 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
 
       await waitFor(() => {
-        expect(screen.getByText("Processing Complete")).toBeTruthy();
+        expect(screen.getByText("Your file is ready")).toBeTruthy();
       });
 
       expect(addActivityEntry).toHaveBeenCalledWith(
@@ -141,10 +148,10 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
 
       await waitFor(() => {
-        expect(screen.getByText("Processing Failed")).toBeTruthy();
+        expect(screen.getByText("Conversion Failed")).toBeTruthy();
         expect(screen.getByText("Conversion failed")).toBeTruthy();
       });
 
@@ -162,7 +169,7 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
 
       await waitFor(() => {
         expect(screen.getAllByText("Uploading your file...").length).toBeGreaterThan(0);
@@ -187,7 +194,7 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
 
       await waitFor(() => {
         expect(screen.getByText("Cancel processing")).toBeTruthy();
@@ -196,13 +203,13 @@ describe("ToolPage", () => {
       await user.click(screen.getByText("Cancel processing"));
 
       await waitFor(() => {
-        expect(screen.getByText("Processing Cancelled")).toBeTruthy();
+        expect(screen.getByText("Conversion Cancelled")).toBeTruthy();
       });
     });
   });
 
-  describe("Process Another state isolation", () => {
-    it("resets to idle state when Process Another is clicked", async () => {
+  describe("convert another file state isolation", () => {
+    it("resets to idle state when Convert another file is clicked", async () => {
       const user = userEvent.setup();
       vi.mocked(uploadFiles).mockResolvedValue({ jobId: "job-1", files: [{ id: "f1", name: "test.pdf", size: 1024 }] });
       vi.mocked(pollJobStatus).mockResolvedValue({ jobId: "job-1", state: "COMPLETED", resultFileName: "out.pdf" });
@@ -211,19 +218,19 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
-      await waitFor(() => expect(screen.getByText("Processing Complete")).toBeTruthy());
+      await user.click(screen.getByText("Convert"));
+      await waitFor(() => expect(screen.getByText("Your file is ready")).toBeTruthy());
 
-      await user.click(screen.getByText("Process Another File"));
+      await user.click(screen.getByText("Convert another file"));
 
       await waitFor(() => {
         expect(screen.getByText("Drag & drop files here")).toBeTruthy();
-        expect(screen.queryByText("Processing Complete")).toBeNull();
-        expect(screen.queryByText("Start Compress PDF")).toBeNull();
+        expect(screen.queryByText("Your file is ready")).toBeNull();
+        expect(screen.queryByText("Convert")).toBeNull();
       });
     });
 
-    it("SUCCESS → Process Another → SUCCESS", async () => {
+    it("SUCCESS → Convert another → SUCCESS", async () => {
       const user = userEvent.setup();
 
       vi.mocked(uploadFiles).mockResolvedValue({ jobId: "job-1", files: [{ id: "f1", name: "test.pdf", size: 1024 }] });
@@ -233,10 +240,10 @@ describe("ToolPage", () => {
       let input = screen.getByLabelText("Upload files") as HTMLInputElement;
 
       selectFile(input, makeFile("first.pdf"));
-      await user.click(screen.getByText("Start Compress PDF"));
-      await waitFor(() => expect(screen.getByText("Processing Complete")).toBeTruthy());
+      await user.click(screen.getByText("Convert"));
+      await waitFor(() => expect(screen.getByText("Your file is ready")).toBeTruthy());
 
-      await user.click(screen.getByText("Process Another File"));
+      await user.click(screen.getByText("Convert another file"));
       await waitFor(() => expect(screen.getByText("Drag & drop files here")).toBeTruthy());
 
       vi.mocked(uploadFiles).mockResolvedValue({ jobId: "job-2", files: [{ id: "f2", name: "second.pdf", size: 1024 }] });
@@ -244,13 +251,13 @@ describe("ToolPage", () => {
 
       input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile("second.pdf"));
-      await user.click(screen.getByText("Start Compress PDF"));
-      await waitFor(() => expect(screen.getByText("Processing Complete")).toBeTruthy());
+      await user.click(screen.getByText("Convert"));
+      await waitFor(() => expect(screen.getByText("Your file is ready")).toBeTruthy());
 
       expect(addActivityEntry).toHaveBeenCalledTimes(2);
     });
 
-    it("SUCCESS → Process Another → FAILURE", async () => {
+    it("SUCCESS → Convert another → FAILURE", async () => {
       const user = userEvent.setup();
 
       vi.mocked(uploadFiles).mockResolvedValue({ jobId: "job-1", files: [{ id: "f1", name: "test.pdf", size: 1024 }] });
@@ -260,21 +267,21 @@ describe("ToolPage", () => {
       let input = screen.getByLabelText("Upload files") as HTMLInputElement;
 
       selectFile(input, makeFile());
-      await user.click(screen.getByText("Start Compress PDF"));
-      await waitFor(() => expect(screen.getByText("Processing Complete")).toBeTruthy());
+      await user.click(screen.getByText("Convert"));
+      await waitFor(() => expect(screen.getByText("Your file is ready")).toBeTruthy());
 
-      await user.click(screen.getByText("Process Another File"));
+      await user.click(screen.getByText("Convert another file"));
       await waitFor(() => expect(screen.getByText("Drag & drop files here")).toBeTruthy());
 
       vi.mocked(pollJobStatus).mockResolvedValue({ jobId: "job-2", state: "FAILED", error: "Bad file" });
       input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile("bad.pdf"));
-      await user.click(screen.getByText("Start Compress PDF"));
-      await waitFor(() => expect(screen.getByText("Processing Failed")).toBeTruthy());
+      await user.click(screen.getByText("Convert"));
+      await waitFor(() => expect(screen.getByText("Conversion Failed")).toBeTruthy());
       expect(screen.getByText("Bad file")).toBeTruthy();
     });
 
-    it("FAILURE → Process Another → SUCCESS", async () => {
+    it("FAILURE → Convert another → SUCCESS", async () => {
       const user = userEvent.setup();
 
       vi.mocked(uploadFiles).mockResolvedValue({ jobId: "job-1", files: [{ id: "f1", name: "test.pdf", size: 1024 }] });
@@ -284,20 +291,20 @@ describe("ToolPage", () => {
       let input = screen.getByLabelText("Upload files") as HTMLInputElement;
 
       selectFile(input, makeFile());
-      await user.click(screen.getByText("Start Compress PDF"));
-      await waitFor(() => expect(screen.getByText("Processing Failed")).toBeTruthy());
+      await user.click(screen.getByText("Convert"));
+      await waitFor(() => expect(screen.getByText("Conversion Failed")).toBeTruthy());
 
-      await user.click(screen.getByText("Try Again"));
+      await user.click(screen.getByText("Try again"));
       await waitFor(() => expect(screen.getByText("Drag & drop files here")).toBeTruthy());
 
       vi.mocked(pollJobStatus).mockResolvedValue({ jobId: "job-2", state: "COMPLETED", resultFileName: "fixed.pdf" });
       input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile("fixed.pdf"));
-      await user.click(screen.getByText("Start Compress PDF"));
-      await waitFor(() => expect(screen.getByText("Processing Complete")).toBeTruthy());
+      await user.click(screen.getByText("Convert"));
+      await waitFor(() => expect(screen.getByText("Your file is ready")).toBeTruthy());
     });
 
-    it("CANCEL → Process Another → SUCCESS", async () => {
+    it("CANCEL → Convert another → SUCCESS", async () => {
       const user = userEvent.setup();
 
       vi.mocked(uploadFiles).mockResolvedValue({ jobId: "job-1", files: [{ id: "f1", name: "test.pdf", size: 1024 }] });
@@ -314,19 +321,19 @@ describe("ToolPage", () => {
       let input = screen.getByLabelText("Upload files") as HTMLInputElement;
 
       selectFile(input, makeFile());
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
       await waitFor(() => expect(screen.getByText("Cancel processing")).toBeTruthy());
       await user.click(screen.getByText("Cancel processing"));
-      await waitFor(() => expect(screen.getByText("Processing Cancelled")).toBeTruthy());
+      await waitFor(() => expect(screen.getByText("Conversion Cancelled")).toBeTruthy());
 
-      await user.click(screen.getByText("Start Over"));
+      await user.click(screen.getByText("Convert another file"));
       await waitFor(() => expect(screen.getByText("Drag & drop files here")).toBeTruthy());
 
       vi.mocked(pollJobStatus).mockResolvedValue({ jobId: "job-2", state: "COMPLETED", resultFileName: "ok.pdf" });
       input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile("ok.pdf"));
-      await user.click(screen.getByText("Start Compress PDF"));
-      await waitFor(() => expect(screen.getByText("Processing Complete")).toBeTruthy());
+      await user.click(screen.getByText("Convert"));
+      await waitFor(() => expect(screen.getByText("Your file is ready")).toBeTruthy());
     });
   });
 
@@ -339,10 +346,10 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
 
       await waitFor(() => {
-        expect(screen.getByText("Processing Failed")).toBeTruthy();
+        expect(screen.getByText("Conversion Failed")).toBeTruthy();
         expect(screen.getByText("Upload failed (500)")).toBeTruthy();
       });
     });
@@ -358,11 +365,11 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
 
       await waitFor(() => {
         const liveRegion = document.querySelector('[aria-live="polite"]');
-        expect(liveRegion?.textContent).toContain("Processing complete");
+        expect(liveRegion?.textContent).toContain("Conversion complete");
       });
     });
 
@@ -375,11 +382,11 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
 
       await waitFor(() => {
         const liveRegion = document.querySelector('[aria-live="polite"]');
-        expect(liveRegion?.textContent).toContain("Processing failed");
+        expect(liveRegion?.textContent).toContain("Conversion failed");
       });
     });
 
@@ -392,7 +399,7 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
       await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
     });
 
@@ -412,7 +419,7 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
       await waitFor(() => expect(screen.getByText("Cancel processing")).toBeTruthy());
       await user.click(screen.getByText("Cancel processing"));
       await waitFor(() => expect(screen.getByRole("status")).toBeTruthy());
@@ -429,7 +436,7 @@ describe("ToolPage", () => {
       const input = screen.getByLabelText("Upload files") as HTMLInputElement;
       selectFile(input, makeFile());
 
-      await user.click(screen.getByText("Start Compress PDF"));
+      await user.click(screen.getByText("Convert"));
 
       await waitFor(() => {
         expect(screen.getByText("compressed.pdf")).toBeTruthy();

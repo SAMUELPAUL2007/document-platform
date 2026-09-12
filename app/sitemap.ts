@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { tools } from "@/lib/tools";
 import { SITE_URL } from "@/lib/constants";
 
-const EXCLUDED_TOOLS = new Set(["spreadsheet", "presentation"]);
+const EXCLUDED_TOOLS = new Set<string>();
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

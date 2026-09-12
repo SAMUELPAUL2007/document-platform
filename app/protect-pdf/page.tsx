@@ -6,7 +6,7 @@ import ProtectPdfClient from "@/components/tool-pages/ProtectPdfClient";
 const tool = getToolById("protect-pdf");
 
 export const metadata: Metadata = {
-  title: "Protect PDF — Free Online Tool | DocFlow",
+  title: "Protect PDF — Free Online Tool | Docvanta",
   description:
     "Add password protection to your PDF files. Free, no signup, no watermarks. Fast and secure online PDF protection.",
   keywords: ["protect PDF", "password protect PDF", "PDF encryption", "secure PDF"],

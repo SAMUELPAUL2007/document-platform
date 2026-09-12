@@ -20,4 +20,4 @@ export const RATE_LIMIT_DOWNLOAD_MAX = envInt("RATE_LIMIT_DOWNLOAD_MAX", 60);
 export const RATE_LIMIT_JOB_STATUS_MAX = envInt("RATE_LIMIT_JOB_STATUS_MAX", 30);
 export const RATE_LIMIT_WINDOW_MS = envInt("RATE_LIMIT_WINDOW_MS", 60_000);
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://docflow.app";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://docvanta.app";

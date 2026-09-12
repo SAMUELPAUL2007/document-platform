@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "DocFlow — Free Online Document Tools",
-    template: "%s | DocFlow",
+    default: "Docvanta — Free Online Document Tools",
+    template: "%s | Docvanta",
   },
   description:
     "Convert, edit, merge, compress, OCR, and share your PDF documents for free. No signup required. Fast, secure, and works right in your browser.",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "DocFlow",
+    siteName: "Docvanta",
     url: SITE_URL,
   },
   twitter: {

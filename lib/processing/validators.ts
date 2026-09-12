@@ -13,6 +13,24 @@ const MAGIC_BYTES: Record<string, number[][]> = {
   "application/pdf": [
     [0x25, 0x50, 0x44, 0x46],
   ],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+    [0x50, 0x4b, 0x03, 0x04],
+  ],
+  "application/vnd.ms-word": [
+    [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1],
+  ],
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+    [0x50, 0x4b, 0x03, 0x04],
+  ],
+  "application/vnd.ms-excel": [
+    [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1],
+  ],
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
+    [0x50, 0x4b, 0x03, 0x04],
+  ],
+  "application/vnd.ms-powerpoint": [
+    [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1],
+  ],
 };
 
 const EXTENSION_TO_MIME: Record<string, string> = {

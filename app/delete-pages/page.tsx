@@ -6,7 +6,7 @@ import DeletePagesClient from "@/components/tool-pages/DeletePagesClient";
 const tool = getToolById("delete-pages");
 
 export const metadata: Metadata = {
-  title: "Delete PDF Pages — Free Online Tool | DocFlow",
+  title: "Delete PDF Pages — Free Online Tool | Docvanta",
   description:
     "Remove specific pages from a PDF document. Free, no signup, no watermarks. Fast and secure online page deletion.",
   keywords: ["delete PDF pages", "remove PDF pages", "PDF page remover", "erase PDF pages"],

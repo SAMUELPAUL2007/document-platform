@@ -75,7 +75,7 @@ const pdfToPptxConverter: Converter = {
     const numPages = pdfDoc.numPages;
 
     const pptx = new PptxGenJS();
-    pptx.author = "DocFlow";
+    pptx.author = "Docvanta";
     pptx.subject = file.originalName.replace(/\.pdf$/i, "");
 
     for (let i = 1; i <= numPages; i++) {

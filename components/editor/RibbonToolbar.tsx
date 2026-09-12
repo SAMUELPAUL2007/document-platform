@@ -186,6 +186,7 @@ function HomeTab({
           onChange={(e) => {
             const size = Number(e.target.value);
             onSettingsChange({ ...settings, fontSize: size });
+            editor.chain().focus().setMark('textStyle', { fontSize: `${size}px` }).run();
           }}
           className="text-xs border border-gray-200 rounded px-2 py-1 w-14"
         >

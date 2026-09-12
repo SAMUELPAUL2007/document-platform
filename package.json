@@ -36,7 +36,6 @@
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "docx": "^9.7.1",
-    "fabric": "^7.4.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.2",
     "next": "16.3.4",
@@ -46,9 +45,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "^0.35.4",
-    "x-data-spreadsheet": "^1.1.9",
-    "xlsx": "^0.18.5",
-    "xml2js": "^0.6.2"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -58,7 +55,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/xml2js": "^0.4.14",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "jsdom": "^30.0.1",

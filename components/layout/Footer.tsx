@@ -13,7 +13,7 @@ export default function Footer() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <span className="text-lg font-bold tracking-tight">DocFlow</span>
+              <span className="text-lg font-bold tracking-tight">Docvanta</span>
             </Link>
             <p className="text-sm text-slate-400 max-w-xs leading-relaxed">
               Free online document tools. Convert, edit, merge, compress, and share your PDF files securely.
@@ -44,7 +44,7 @@ export default function Footer() {
 
         <div className="mt-10 pt-8 border-t border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-slate-500">
-            &copy; {new Date().getFullYear()} DocFlow. All rights reserved.
+            &copy; {new Date().getFullYear()} Docvanta. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <Link href="/privacy" className="text-xs text-slate-500 hover:text-white transition-colors">

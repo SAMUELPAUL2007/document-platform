@@ -40,3 +40,22 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# deployment artifacts
+docker-compose*.yml
+
+# local server logs
+server.log
+server-err.log
+*.log
+
+# playwright mcp local state
+.playwright-mcp/
+
+# local test files (personal uploads / generated in root)
+/*.pptx
+/*.docx
+/*.xlsx
+
+# local dev scripts (not part of test suite)
+scripts/

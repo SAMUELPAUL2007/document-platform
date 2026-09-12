@@ -34,12 +34,12 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
   const [files, setFiles] = useState<File[]>([]);
   const [state, setState] = useState<PageState>({ status: "idle", progress: 0 });
   const abortControllerRef = useRef<AbortController | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
     };
   }, []);
-
 
   const getDisplayFileName = useCallback(() => {
     if (files.length === 0) return "unknown";
@@ -80,11 +80,12 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
           }
           if (status.state === "PROCESSING" || status.state === "QUEUED") {
             const snapshot = status.progress;
-            const serverProgress = snapshot?.percent ?? 60;
+            const hasProgress = snapshot?.percent !== undefined && snapshot.percent > 0;
+            const serverProgress = hasProgress ? snapshot!.percent : 0;
             setState((prev) => ({
               ...prev,
               status: "processing",
-              progress: Math.max(prev.progress, serverProgress),
+              progress: hasProgress ? Math.max(prev.progress, serverProgress) : prev.progress,
               progressSnapshot: snapshot,
             }));
           }
@@ -154,7 +155,6 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
       } catch {
         // Best effort — UI already reflects cancelled state
       }
-      // Activity is recorded by the polling callback when server confirms CANCELLED
     }
     setState((prev) => ({
       ...prev,
@@ -186,6 +186,8 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
   const isComplete = state.status === "complete";
   const isError = state.status === "error";
   const isCancelled = state.status === "cancelled";
+  const hasFiles = files.length > 0;
+  const canAddMore = hasFiles && !isProcessing && !isComplete && !isError && !isCancelled && (!tool.maxFiles || files.length < tool.maxFiles);
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-surface" role="main">
@@ -199,13 +201,14 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
 
         <div className="sr-only" aria-live="polite" aria-atomic="true">
           {state.status === "uploading" && "Uploading your file..."}
-          {state.status === "processing" && "Processing your file..."}
-          {state.status === "complete" && "Processing complete. Your file is ready to download."}
-          {state.status === "error" && `Processing failed: ${state.error}`}
-          {state.status === "cancelled" && "Processing was cancelled."}
+          {state.status === "processing" && "Converting your file..."}
+          {state.status === "complete" && "Conversion complete. Your file is ready to download."}
+          {state.status === "error" && `Conversion failed: ${state.error}`}
+          {state.status === "cancelled" && "Conversion was cancelled."}
         </div>
 
-        {!isComplete && !isError && !isCancelled && (
+        {/* DropZone: full size when no files, hidden when processing/complete/error/cancelled */}
+        {!hasFiles && !isComplete && !isError && !isCancelled && (
           <div className="animate-slide-up" style={{ animationDelay: "0.05s" }}>
             <DropZone
               accept={tool.accept}
@@ -215,38 +218,66 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
           </div>
         )}
 
-        {files.length > 0 && !isComplete && !isError && !isCancelled && (
-          <div className="mt-6 space-y-2 animate-slide-up">
-            {files.map((file, i) => (
-              <FileCard
-                key={`${file.name}-${i}`}
-                file={file}
-                status={
-                  isProcessing
-                    ? state.status === "uploading"
-                      ? "uploading"
-                      : "processing"
-                    : "pending"
-                }
-                progress={isProcessing ? state.progress : 0}
-                onRemove={
-                  !isProcessing ? () => handleRemoveFile(i) : undefined
-                }
+        {/* Selected files + compact controls */}
+        {hasFiles && !isComplete && !isError && !isCancelled && (
+          <div className="space-y-3 animate-slide-up">
+            {/* File cards */}
+            <div className="space-y-2">
+              {files.map((file, i) => (
+                <FileCard
+                  key={`${file.name}-${i}`}
+                  file={file}
+                  status={
+                    isProcessing
+                      ? state.status === "uploading"
+                        ? "uploading"
+                        : "processing"
+                      : "pending"
+                  }
+                  progress={isProcessing ? state.progress : 0}
+                  onRemove={
+                    !isProcessing ? () => handleRemoveFile(i) : undefined
+                  }
+                />
+              ))}
+            </div>
+
+            {/* Add another file */}
+            {canAddMore && (
+              <DropZone
+                accept={tool.accept}
+                maxFiles={tool.maxFiles}
+                onFilesSelected={handleFilesSelected}
+                compact
               />
-            ))}
+            )}
+
+            {/* Processing UI */}
+            {isProcessing && (
+              <ProcessingUI
+                status={state.status === "uploading" ? "uploading" : "processing"}
+                progress={state.progress}
+                progressSnapshot={state.progressSnapshot}
+                onCancel={handleCancel}
+                canCancel={state.status === "processing"}
+              />
+            )}
+
+            {/* Convert button */}
+            {!isProcessing && (
+              <div className="flex justify-center pt-2">
+                <Button size="lg" onClick={handleProcess}>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  Convert
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
-        {isProcessing && (
-          <ProcessingUI
-            status={state.status === "uploading" ? "uploading" : "processing"}
-            progress={state.progress}
-            progressSnapshot={state.progressSnapshot}
-            onCancel={handleCancel}
-            canCancel={state.status === "processing"}
-          />
-        )}
-
+        {/* Result state */}
         {isComplete && (
           <ResultUI
             toolName={tool.name}
@@ -256,20 +287,22 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
           />
         )}
 
+        {/* Cancelled state */}
         {isCancelled && (
           <div className="mt-6 p-6 rounded-2xl bg-muted border border-border animate-fade-in text-center" role="status">
-            <p className="text-sm font-semibold text-foreground">Processing Cancelled</p>
+            <p className="text-sm font-semibold text-foreground">Conversion Cancelled</p>
             <p className="text-sm text-muted-foreground mt-1">
               The operation was cancelled. No output was generated.
             </p>
-            <div className="mt-4">
+            <div className="mt-4 flex items-center justify-center gap-3">
               <Button variant="secondary" size="sm" onClick={handleReset}>
-                Start Over
+                Convert another file
               </Button>
             </div>
           </div>
         )}
 
+        {/* Error state */}
         {isError && (
           <div className="mt-6 p-6 rounded-2xl bg-danger-light border border-red-200 animate-fade-in" role="alert">
             <div className="flex items-start gap-3">
@@ -277,26 +310,18 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-red-800">Processing Failed</p>
+                <p className="text-sm font-semibold text-red-800">Conversion Failed</p>
                 <p className="text-sm text-red-700 mt-1">{state.error}</p>
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex items-center justify-center gap-3">
               <Button variant="secondary" size="sm" onClick={handleReset}>
-                Try Again
+                Try again
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleReset}>
+                Convert another file
               </Button>
             </div>
-          </div>
-        )}
-
-        {files.length > 0 && !isProcessing && !isComplete && !isError && !isCancelled && (
-          <div className="mt-6 flex justify-center animate-slide-up">
-            <Button size="lg" onClick={handleProcess}>
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-              </svg>
-              Start {tool.name}
-            </Button>
           </div>
         )}
 
@@ -309,7 +334,7 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
             </li>
             <li className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-primary-light text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-              We process your files securely on our servers
+              We convert your files securely on our servers
             </li>
             <li className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-primary-light text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>

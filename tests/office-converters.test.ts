@@ -11,12 +11,16 @@ import pptxToPdfConverter from "../lib/processing/converters/pptx-to-pdf";
 import pdfToDocxConverter from "../lib/processing/converters/pdf-to-docx";
 import pdfToXlsxConverter from "../lib/processing/converters/pdf-to-xlsx";
 import pdfToPptxConverter from "../lib/processing/converters/pdf-to-pptx";
+import { findLibreOffice } from "../lib/processing/converters/libreoffice";
 import type { ConverterInput } from "../lib/processing/types";
 
 const TEST_DIR = join(process.cwd(), ".tmp", "test-office-converters");
 
+let libreOfficeAvailable = false;
+
 beforeAll(async () => {
   await mkdir(TEST_DIR, { recursive: true });
+  libreOfficeAvailable = (await findLibreOffice()) !== null;
 });
 
 afterAll(async () => {
@@ -94,6 +98,110 @@ async function createTestPptx(): Promise<string> {
   return filePath;
 }
 
+async function createComplexTestPptx(): Promise<string> {
+  const pptx = new PptxGenJS();
+
+  // Slide 1: Title slide with shapes and text
+  const slide1 = pptx.addSlide();
+  slide1.addShape(pptx.ShapeType.rect, {
+    x: 0, y: 0, w: "100%", h: "100%",
+    fill: { type: "solid", color: "003366" },
+  });
+  slide1.addText("Cosmic Atlas", {
+    x: 1, y: 2, w: 8, h: 1.5,
+    fontSize: 44, color: "FFFFFF", bold: true,
+    align: "center",
+  });
+  slide1.addText("A Journey Through Space", {
+    x: 1, y: 3.5, w: 8, h: 0.8,
+    fontSize: 24, color: "CCCCCC",
+    align: "center",
+  });
+
+  // Slide 2: Table slide
+  const slide2 = pptx.addSlide();
+  slide2.addText("Planetary Data", { x: 0.5, y: 0.3, w: 9, h: 0.8, fontSize: 28, bold: true });
+  const tableRows = [
+    [
+      { text: "Planet", options: { bold: true, fill: { color: "003366" }, color: "FFFFFF" } },
+      { text: "Distance (AU)", options: { bold: true, fill: { color: "003366" }, color: "FFFFFF" } },
+      { text: "Diameter (km)", options: { bold: true, fill: { color: "003366" }, color: "FFFFFF" } },
+    ],
+    [
+      { text: "Mercury", options: {} },
+      { text: "0.39", options: {} },
+      { text: "4,879", options: {} },
+    ],
+    [
+      { text: "Venus", options: {} },
+      { text: "0.72", options: {} },
+      { text: "12,104", options: {} },
+    ],
+    [
+      { text: "Earth", options: {} },
+      { text: "1.00", options: {} },
+      { text: "12,756", options: {} },
+    ],
+    [
+      { text: "Mars", options: {} },
+      { text: "1.52", options: {} },
+      { text: "6,792", options: {} },
+    ],
+  ];
+  slide2.addTable(tableRows, {
+    x: 0.5, y: 1.3, w: 9,
+    fontSize: 14,
+    border: { type: "solid", pt: 1, color: "CCCCCC" },
+    colW: [3, 3, 3],
+    rowH: 0.5,
+  });
+
+  // Slide 3: Multiple shapes
+  const slide3 = pptx.addSlide();
+  slide3.addText("Shapes and Diagrams", { x: 0.5, y: 0.3, w: 9, h: 0.8, fontSize: 28, bold: true });
+  slide3.addShape(pptx.ShapeType.ellipse, {
+    x: 1, y: 2, w: 2, h: 2,
+    fill: { type: "solid", color: "FF6600" },
+  });
+  slide3.addShape(pptx.ShapeType.rect, {
+    x: 4, y: 2, w: 2, h: 2,
+    fill: { type: "solid", color: "0066CC" },
+  });
+  slide3.addShape(pptx.ShapeType.triangle, {
+    x: 7, y: 2, w: 2, h: 2,
+    fill: { type: "solid", color: "00CC66" },
+  });
+
+  // Slide 4: Bullet points
+  const slide4 = pptx.addSlide();
+  slide4.addText("Key Findings", { x: 0.5, y: 0.3, w: 9, h: 0.8, fontSize: 28, bold: true });
+  slide4.addText([
+    { text: "First finding with important data", options: { bullet: true, fontSize: 18 } },
+    { text: "Second finding about exploration", options: { bullet: true, fontSize: 18 } },
+    { text: "Third finding with conclusions", options: { bullet: true, fontSize: 18 } },
+    { text: "Fourth finding for future research", options: { bullet: true, fontSize: 18 } },
+  ], { x: 0.5, y: 1.3, w: 9, h: 4 });
+
+  // Slide 5: Multi-column layout
+  const slide5 = pptx.addSlide();
+  slide5.addText("Multi-Column Layout", { x: 0.5, y: 0.3, w: 9, h: 0.8, fontSize: 28, bold: true });
+  slide5.addText("Column 1\n\nContent for the first column with detailed information.", {
+    x: 0.5, y: 1.3, w: 2.8, h: 4, fontSize: 14, valign: "top",
+  });
+  slide5.addText("Column 2\n\nContent for the second column with more details.", {
+    x: 3.6, y: 1.3, w: 2.8, h: 4, fontSize: 14, valign: "top",
+  });
+  slide5.addText("Column 3\n\nContent for the third column with final notes.", {
+    x: 6.7, y: 1.3, w: 2.8, h: 4, fontSize: 14, valign: "top",
+  });
+
+  const result = await pptx.write({ outputType: "nodebuffer" });
+  const buffer = Buffer.isBuffer(result) ? result : Buffer.from(result as ArrayBuffer);
+  const filePath = join(TEST_DIR, `complex-test-${Date.now()}.pptx`);
+  await writeFile(filePath, buffer);
+  return filePath;
+}
+
 function makeInput(storedName: string, originalName: string, mimeType: string): ConverterInput {
   return {
     jobDir: TEST_DIR,
@@ -146,10 +254,15 @@ describe("XLSX to PDF converter", () => {
 });
 
 describe("PPTX to PDF converter", () => {
-  it("converts a PPTX file to PDF", async () => {
+  it("converts a simple PPTX file to PDF", async () => {
+    if (!libreOfficeAvailable) {
+      console.log("  ⊘ Skipping: LibreOffice not installed");
+      return;
+    }
+
     await createTestPptx();
     const files = await import("fs/promises").then((f) => f.readdir(TEST_DIR));
-    const pptxFile = files.find((f) => f.endsWith(".pptx"));
+    const pptxFile = files.find((f) => f.startsWith("test-") && f.endsWith(".pptx"));
     expect(pptxFile).toBeDefined();
 
     const result = await pptxToPdfConverter.convert(
@@ -164,6 +277,84 @@ describe("PPTX to PDF converter", () => {
 
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     expect(pdfDoc.getPageCount()).toBe(1);
+  });
+
+  it("converts a complex PPTX with multiple slides to PDF preserving slide count", async () => {
+    if (!libreOfficeAvailable) {
+      console.log("  ⊘ Skipping: LibreOffice not installed");
+      return;
+    }
+
+    await createComplexTestPptx();
+    const files = await import("fs/promises").then((f) => f.readdir(TEST_DIR));
+    const pptxFile = files.find((f) => f.startsWith("complex-test-") && f.endsWith(".pptx"));
+    expect(pptxFile).toBeDefined();
+
+    const result = await pptxToPdfConverter.convert(
+      makeInput(pptxFile!, pptxFile!, "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+    );
+
+    expect(result.outputFileName).toMatch(/\.pdf$/);
+    expect(result.outputMimeType).toBe("application/pdf");
+
+    const pdfBuffer = await readFile(result.outputPath);
+    expect(pdfBuffer.length).toBeGreaterThan(0);
+
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    expect(pdfDoc.getPageCount()).toBe(5);
+  });
+
+  it("throws clear error when no input file is provided", async () => {
+    const converter = pptxToPdfConverter;
+    const emptyInput: ConverterInput = {
+      jobDir: TEST_DIR,
+      files: [],
+    };
+
+    await expect(converter.convert(emptyInput)).rejects.toThrow("No file provided");
+  });
+
+  it("rejects PPTX files when LibreOffice is unavailable", async () => {
+    if (libreOfficeAvailable) {
+      console.log("  ⊘ Skipping: LibreOffice is installed (cannot test unavailable path)");
+      return;
+    }
+
+    await createTestPptx();
+    const files = await import("fs/promises").then((f) => f.readdir(TEST_DIR));
+    const pptxFile = files.find((f) => f.startsWith("test-") && f.endsWith(".pptx"));
+    expect(pptxFile).toBeDefined();
+
+    await expect(
+      pptxToPdfConverter.convert(
+        makeInput(pptxFile!, pptxFile!, "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+      )
+    ).rejects.toThrow("PPTX to PDF conversion requires LibreOffice");
+  });
+
+  it("produces non-empty PDF output", async () => {
+    if (!libreOfficeAvailable) {
+      console.log("  ⊘ Skipping: LibreOffice not installed");
+      return;
+    }
+
+    await createTestPptx();
+    const files = await import("fs/promises").then((f) => f.readdir(TEST_DIR));
+    const pptxFile = files.find((f) => f.startsWith("test-") && f.endsWith(".pptx"));
+    expect(pptxFile).toBeDefined();
+
+    const result = await pptxToPdfConverter.convert(
+      makeInput(pptxFile!, pptxFile!, "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+    );
+
+    const pdfBuffer = await readFile(result.outputPath);
+    expect(pdfBuffer.length).toBeGreaterThan(1000);
+
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const page = pdfDoc.getPage(0);
+    const { width, height } = page.getSize();
+    expect(width).toBeGreaterThan(0);
+    expect(height).toBeGreaterThan(0);
   });
 });
 
@@ -272,5 +463,14 @@ describe("LibreOffice wrapper", () => {
     const { findLibreOffice } = await import("../lib/processing/converters/libreoffice");
     const result = await findLibreOffice();
     expect(result === null || typeof result === "string").toBe(true);
+  });
+
+  it("reports LibreOffice availability correctly", async () => {
+    const result = await findLibreOffice();
+    if (result) {
+      expect(result.length).toBeGreaterThan(0);
+    } else {
+      expect(result).toBeNull();
+    }
   });
 });

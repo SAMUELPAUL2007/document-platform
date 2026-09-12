@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
@@ -26,6 +26,29 @@ import { RibbonToolbar } from "./RibbonToolbar";
 import { importDocx, exportDocx } from "@/lib/editor/docx-io";
 import { exportPdf } from "@/lib/editor/pdf-export";
 import type { RibbonTab, EditorSettings } from "@/lib/editor/types";
+
+function PageCount({ editor, settings }: { editor: ReturnType<typeof useEditor> extends infer E ? E : never; settings: EditorSettings }) {
+  const [pageCount, setPageCount] = useState(1);
+
+  useEffect(() => {
+    if (!editor) return;
+    const calculatePages = () => {
+      const editorEl = document.querySelector('.tiptap');
+      if (!editorEl) return;
+      const contentHeight = editorEl.scrollHeight;
+      const pageHeightPx = settings.orientation === "portrait" ? 1123 : 794;
+      const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+      setPageCount(pages);
+    };
+    calculatePages();
+    const observer = new MutationObserver(calculatePages);
+    const editorEl = document.querySelector('.tiptap');
+    if (editorEl) observer.observe(editorEl, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [editor, settings.orientation, editor?.state.doc]);
+
+  return <span>Page 1 of {pageCount}</span>;
+}
 
 interface DocumentEditorProps {
   initialHtml?: string;
@@ -197,7 +220,7 @@ export function DocumentEditor({ initialHtml = "", title = "" }: DocumentEditorP
       </div>
 
       <div className="flex items-center justify-between px-4 py-1 bg-white border-t border-gray-200 text-xs text-gray-500">
-        <span>Page 1 of 1</span>
+        <PageCount editor={editor} settings={settings} />
         <span>{editor.storage.characterCount?.words?.() ?? editor.getText().split(/\s+/).filter(Boolean).length} words</span>
         <span>{editor.storage.characterCount?.characters?.() ?? editor.getText().length} characters</span>
       </div>

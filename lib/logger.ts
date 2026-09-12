@@ -20,10 +20,11 @@ function formatTimestamp(): string {
 
 function redact(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  const sensitivePatterns = /^(password|secret|token|key|api_key|apikey|access.?token|auth.?token|credentials|bearer)$/i;
   for (const [k, v] of Object.entries(obj)) {
     if (typeof v === "string" && v.length > 200) {
       out[k] = v.slice(0, 200) + "...(truncated)";
-    } else if (k === "password" || k === "secret" || k === "token" || k === "key") {
+    } else if (sensitivePatterns.test(k)) {
       out[k] = "***";
     } else {
       out[k] = v;

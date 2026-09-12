@@ -66,6 +66,8 @@ export async function GET(
       response.progress = { percent: 100, stage: "complete" };
     } else if (job.state === "QUEUED") {
       response.progress = { percent: 0, stage: "queued" };
+    } else if (job.state === "PROCESSING") {
+      response.progress = { percent: 10, stage: "processing" };
     }
 
     const successHeaders: Record<string, string> = { "X-Request-ID": requestId };

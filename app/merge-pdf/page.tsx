@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 const tool = getToolById("merge-pdf");
 
 export const metadata: Metadata = {
-  title: "Merge PDF — Free Online Tool | DocFlow",
+  title: "Merge PDF — Free Online Tool | Docvanta",
   description:
     "Combine multiple PDF files into a single document. Free, no signup, no watermarks. Fast and secure online PDF merger.",
   keywords: ["merge PDF", "combine PDF", "PDF merger", "join PDF files"],

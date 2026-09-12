@@ -1,33 +1,11 @@
-import { readFile, writeFile } from "fs/promises";
+import { readFile, writeFile, unlink, mkdir } from "fs/promises";
 import { join } from "path";
-import mammoth from "mammoth";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { tmpdir } from "os";
+import { convertWithLibreOffice } from "./libreoffice";
 import type { Converter, ConverterInput, ConverterResult } from "../types";
+import { logger } from "../../logger";
 
-const FONT_SIZE = 11;
-const LINE_HEIGHT = 14;
-const PAGE_MARGIN = 50;
-const PAGE_WIDTH = 595.28;
-const PAGE_HEIGHT = 841.89;
-
-function parseHtmlToLines(html: string): string[] {
-  const text = html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<\/h[1-6]>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim();
-
-  return text.split("\n").filter((line) => line.trim().length > 0);
-}
+const CONVERSION_TIMEOUT_MS = 120_000;
 
 const docxToPdfConverter: Converter = {
   id: "docx-to-pdf",
@@ -41,87 +19,67 @@ const docxToPdfConverter: Converter = {
     if (!file) {
       throw new Error("No file provided");
     }
-    const buffer = await readFile(join(input.jobDir, file.storedName));
 
-    const result = await mammoth.convertToHtml({ buffer });
-    const html = result.value;
+    const inputPath = join(input.jobDir, file.storedName);
+    const tempDir = join(tmpdir(), `docx-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
-    const lines = parseHtmlToLines(html);
-    if (lines.length === 0) {
-      lines.push("(Empty document)");
-    }
+    try {
+      await mkdir(tempDir, { recursive: true });
 
-    const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      logger.info("docx_to_pdf_start", {
+        event: "docx_to_pdf",
+        inputFile: file.originalName,
+      });
 
-    const usableWidth = PAGE_WIDTH - PAGE_MARGIN * 2;
-    const usableHeight = PAGE_HEIGHT - PAGE_MARGIN * 2;
-    const maxLinesPerPage = Math.floor(usableHeight / LINE_HEIGHT);
+      const result = await convertWithLibreOffice(inputPath, tempDir, "pdf", CONVERSION_TIMEOUT_MS);
 
-    let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-    let y = PAGE_HEIGHT - PAGE_MARGIN;
-    let lineCount = 0;
-
-    for (const line of lines) {
-      if (lineCount >= maxLinesPerPage) {
-        page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-        y = PAGE_HEIGHT - PAGE_MARGIN;
-        lineCount = 0;
-      }
-
-      const words = line.split(/\s+/);
-      let currentLine = "";
-
-      for (const word of words) {
-        const testLine = currentLine ? `${currentLine} ${word}` : word;
-        const textWidth = font.widthOfTextAtSize(testLine, FONT_SIZE);
-
-        if (textWidth > usableWidth && currentLine) {
-          page.drawText(currentLine, {
-            x: PAGE_MARGIN,
-            y,
-            size: FONT_SIZE,
-            font,
-            color: rgb(0, 0, 0),
-          });
-          y -= LINE_HEIGHT;
-          lineCount++;
-          currentLine = word;
-
-          if (lineCount >= maxLinesPerPage) {
-            page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-            y = PAGE_HEIGHT - PAGE_MARGIN;
-            lineCount = 0;
-          }
-        } else {
-          currentLine = testLine;
-        }
-      }
-
-      if (currentLine) {
-        page.drawText(currentLine, {
-          x: PAGE_MARGIN,
-          y,
-          size: FONT_SIZE,
-          font,
-          color: rgb(0, 0, 0),
+      if (!result.success || !result.outputPath) {
+        const errorMsg = result.error || "LibreOffice conversion failed";
+        logger.error("docx_to_pdf_failed", {
+          event: "docx_to_pdf",
+          error: errorMsg,
+          stderr: result.stderr,
         });
-        y -= LINE_HEIGHT;
-        lineCount++;
+        throw new Error(`Word to PDF conversion failed: ${errorMsg}`);
+      }
+
+      const pdfBuffer = await readFile(result.outputPath);
+
+      if (pdfBuffer.length === 0) {
+        throw new Error("LibreOffice produced an empty PDF file");
+      }
+
+      const baseName = file.originalName.replace(/\.(docx?|doc)$/i, "");
+      const outputFileName = `${baseName}.pdf`;
+      const outputPath = join(input.jobDir, outputFileName);
+      await writeFile(outputPath, pdfBuffer);
+
+      logger.info("docx_to_pdf_complete", {
+        event: "docx_to_pdf",
+        inputSize: (await readFile(inputPath)).length,
+        outputSize: pdfBuffer.length,
+      });
+
+      return {
+        outputFileName,
+        outputMimeType: "application/pdf",
+        outputPath,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error("docx_to_pdf_error", { event: "docx_to_pdf", error: message });
+      throw error;
+    } finally {
+      try {
+        const files = await import("fs/promises").then((m) => m.readdir(tempDir, { withFileTypes: true }));
+        for (const f of files) {
+          await unlink(join(tempDir, f.name)).catch(() => {});
+        }
+        await import("fs/promises").then((m) => m.rmdir(tempDir)).catch(() => {});
+      } catch {
+        // Best effort cleanup
       }
     }
-
-    const pdfBytes = await pdfDoc.save();
-    const baseName = file.originalName.replace(/\.(docx?|doc)$/i, "");
-    const outputFileName = `${baseName}.pdf`;
-    const outputPath = join(input.jobDir, outputFileName);
-    await writeFile(outputPath, pdfBytes);
-
-    return {
-      outputFileName,
-      outputMimeType: "application/pdf",
-      outputPath,
-    };
   },
 };
 

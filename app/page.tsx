@@ -6,7 +6,7 @@ import { SITE_URL } from "@/lib/constants";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "DocFlow — Free Online Document Tools | Convert, Edit, Merge PDFs",
+  title: "Docvanta — Free Online Document Tools | Convert, Edit, Merge PDFs",
   description:
     "Convert, edit, merge, compress, OCR, and share your PDF documents for free. No signup required. Fast, secure, and works right in your browser.",
   keywords: [
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     "online PDF editor",
   ],
   openGraph: {
-    title: "DocFlow — Free Online Document Tools",
+    title: "Docvanta — Free Online Document Tools",
     description:
       "Convert, edit, merge, compress, and share your PDF documents. 100% free, no signup required.",
     url: SITE_URL,
@@ -34,7 +34,7 @@ export default function HomePage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    name: "DocFlow",
+    name: "Docvanta",
     url: SITE_URL,
     description:
       "Convert, edit, merge, compress, OCR, and share your PDF documents for free. No signup required. Fast, secure, and works right in your browser.",
@@ -58,8 +58,6 @@ export default function HomePage() {
       "Images to PDF",
       "PDF to JPG/PNG",
       "Online document editor",
-      "Online spreadsheet editor",
-      "Online presentation editor",
     ],
   };
 
@@ -78,7 +76,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
-              Why DocFlow?
+              Why Docvanta?
             </h2>
           </div>
           <div className="grid sm:grid-cols-3 gap-8">

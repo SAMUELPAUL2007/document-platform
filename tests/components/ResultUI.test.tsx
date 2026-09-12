@@ -9,7 +9,7 @@ describe("ResultUI", () => {
     render(
       <ResultUI toolName="Compress PDF" onReset={vi.fn()} />
     );
-    expect(screen.getByText("Processing Complete")).toBeTruthy();
+    expect(screen.getByText("Your file is ready")).toBeTruthy();
   });
 
   it("renders custom heading when provided", () => {
@@ -17,13 +17,6 @@ describe("ResultUI", () => {
       <ResultUI toolName="Compress PDF" heading="Compression Done" onReset={vi.fn()} />
     );
     expect(screen.getByText("Compression Done")).toBeTruthy();
-  });
-
-  it("renders tool name in description", () => {
-    render(
-      <ResultUI toolName="Merge PDF" onReset={vi.fn()} />
-    );
-    expect(screen.getByText(/Merge PDF/)).toBeTruthy();
   });
 
   it("renders filename when provided", () => {
@@ -55,20 +48,20 @@ describe("ResultUI", () => {
     expect(screen.queryByText("Download")).toBeNull();
   });
 
-  it("renders Process Another File button", () => {
+  it("renders Convert another file button", () => {
     render(
       <ResultUI toolName="Compress PDF" onReset={vi.fn()} />
     );
-    expect(screen.getByText("Process Another File")).toBeTruthy();
+    expect(screen.getByText("Convert another file")).toBeTruthy();
   });
 
-  it("calls onReset when Process Another File is clicked", async () => {
+  it("calls onReset when Convert another file is clicked", async () => {
     const user = userEvent.setup();
     const onReset = vi.fn();
     render(
       <ResultUI toolName="Compress PDF" onReset={onReset} />
     );
-    await user.click(screen.getByText("Process Another File"));
+    await user.click(screen.getByText("Convert another file"));
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 

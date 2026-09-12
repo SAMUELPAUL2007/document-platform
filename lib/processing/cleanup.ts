@@ -1,6 +1,7 @@
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
 import { TEMP_DIR } from "@/lib/constants";
+import { logger } from "@/lib/logger";
 
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 const JOB_MAX_AGE_MS = 60 * 60 * 1000;
@@ -31,21 +32,23 @@ export async function cleanupTempDir(): Promise<number> {
         // Skip directories we can't access
       }
     }
-  } catch {
-    // Temp dir might not exist yet
+  } catch (err) {
+    logger.warn("temp_dir_access_error", { error: err instanceof Error ? err.message : "unknown" });
   }
 
   return removed;
 }
 
 export function runCleanupCycle(): void {
-  cleanupTempDir().catch(() => {});
+  cleanupTempDir().catch((err) => {
+    logger.warn("cleanup_cycle_error", { error: err instanceof Error ? err.message : "unknown" });
+  });
   try {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { recoverStuckJobs } = require("./job-manager");
     recoverStuckJobs();
-  } catch {
-    // job-manager may not be loaded yet
+  } catch (err) {
+    logger.warn("job_recovery_unavailable", { error: err instanceof Error ? err.message : "unknown" });
   }
 }
 

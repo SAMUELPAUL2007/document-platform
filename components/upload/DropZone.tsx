@@ -8,12 +8,14 @@ interface DropZoneProps {
   accept: string;
   maxFiles?: number;
   onFilesSelected: (files: File[]) => void;
+  compact?: boolean;
 }
 
 export default function DropZone({
   accept,
   maxFiles = 10,
   onFilesSelected,
+  compact = false,
 }: DropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +93,40 @@ export default function DropZone({
       e.target.value = "";
     }
   };
+
+  if (compact) {
+    return (
+      <div className="w-full">
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          multiple={maxFiles > 1}
+          onChange={handleChange}
+          className="sr-only"
+          aria-label="Add more files"
+          id="add-more-files"
+        />
+        <label
+          htmlFor="add-more-files"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/40 rounded-lg cursor-pointer transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Add another file
+        </label>
+        {error && (
+          <div className="mt-2 px-3 py-2 rounded-lg bg-danger-light text-red-700 text-xs flex items-center gap-2 animate-fade-in" role="alert" aria-live="assertive">
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            {error}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

@@ -3,9 +3,9 @@ import Link from "next/link";
 import { SITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | DocFlow",
+  title: "Privacy Policy | Docvanta",
   description:
-    "Learn how DocFlow handles your privacy. Files are processed securely and deleted immediately after processing.",
+    "Learn how Docvanta handles your privacy. Files are processed securely and deleted immediately after processing.",
   alternates: {
     canonical: `${SITE_URL}/privacy`,
   },
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-semibold mb-3">File Processing</h2>
           <p className="text-muted-foreground">
-            DocFlow processes your files securely on our servers. Uploaded files and
+            Docvanta processes your files securely on our servers. Uploaded files and
             results are stored temporarily in isolated processing directories and are
             automatically deleted within one hour of processing completion. We do not
             access, read, or share the contents of your documents beyond what is
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-semibold mb-3">Cookies</h2>
           <p className="text-muted-foreground">
-            DocFlow does not use tracking cookies. We may use essential cookies required
+            Docvanta does not use tracking cookies. We may use essential cookies required
             for the functioning of the website.
           </p>
         </section>
@@ -51,7 +51,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-semibold mb-3">Third-Party Services</h2>
           <p className="text-muted-foreground">
-            DocFlow does not share your data with any third-party services. All document
+            Docvanta does not share your data with any third-party services. All document
             processing occurs on our own infrastructure.
           </p>
         </section>

@@ -254,26 +254,6 @@ export const tools: Tool[] = [
     accept: ".pdf",
     maxFiles: 1,
   },
-  {
-    id: "spreadsheet",
-    name: "Spreadsheet Editor",
-    description: "Edit XLSX files online with a full-featured spreadsheet editor",
-    category: "edit",
-    icon: "table-cells",
-    href: "/spreadsheet",
-    accept: ".xlsx,.xls",
-    maxFiles: 1,
-  },
-  {
-    id: "presentation",
-    name: "Presentation Editor",
-    description: "Create and edit PowerPoint presentations in your browser",
-    category: "edit",
-    icon: "presentation-chart-line",
-    href: "/presentation",
-    accept: ".pptx,.ppt",
-    maxFiles: 1,
-  },
 ];
 
 export const popularTools = tools.filter((tool) =>

@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 const tool = getToolById("pdf-to-word");
 
 export const metadata: Metadata = {
-  title: "PDF to Word — Free Online Converter | DocFlow",
+  title: "PDF to Word — Free Online Converter | Docvanta",
   description:
     "Convert PDF documents to editable Word files for free. No signup, no watermarks. Fast and secure online PDF to Word converter.",
   keywords: ["PDF to Word", "convert PDF to DOCX", "free PDF converter"],

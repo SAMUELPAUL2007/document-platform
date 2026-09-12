@@ -75,12 +75,13 @@ interface Block {
 function extractBlocks(body: HTMLElement): Block[] {
   const blocks: Block[] = [];
 
-  function walk(el: Node): void {
+  function walk(el: Node, listIndex: number = 0, inList: boolean = false): void {
     if (el.nodeType === Node.TEXT_NODE) {
       const text = el.textContent || "";
       if (text.trim()) {
+        const prefix = inList ? `${listIndex}. ` : "";
         blocks.push({
-          text,
+          text: prefix + text,
           fontSize: 12,
           bold: false,
           italic: false,
@@ -116,13 +117,65 @@ function extractBlocks(body: HTMLElement): Block[] {
     if (tag === "b" || tag === "strong") bold = true;
     if (tag === "i" || tag === "em") italic = true;
 
+    if (tag === "table") {
+      const rows = element.querySelectorAll("tr");
+      rows.forEach((row, rowIdx) => {
+        const cells = row.querySelectorAll("td, th");
+        const cellTexts: string[] = [];
+        cells.forEach((cell) => {
+          cellTexts.push(cell.textContent?.trim() || "");
+        });
+        if (cellTexts.length > 0) {
+          const isHeader = row.querySelector("th") !== null;
+          blocks.push({
+            text: cellTexts.join(" | "),
+            fontSize: 11,
+            bold: isHeader,
+            italic: false,
+            spacing: 2,
+          });
+        }
+      });
+      blocks.push({ text: "", fontSize: 8, bold: false, italic: false, spacing: 8 });
+      return;
+    }
+
     const text = element.textContent || "";
-    if (text.trim() && !["table", "ul", "ol", "thead", "tbody", "tfoot"].includes(tag)) {
+    if (text.trim() && !["ul", "ol", "thead", "tbody", "tfoot"].includes(tag)) {
       blocks.push({ text: text.trim(), fontSize, bold, italic, spacing });
     }
 
-    for (const child of Array.from(element.childNodes)) {
-      walk(child);
+    if (tag === "ol") {
+      let idx = 1;
+      for (const child of Array.from(element.childNodes)) {
+        if (child.nodeType === Node.ELEMENT_NODE && (child as Element).tagName.toLowerCase() === "li") {
+          walk(child, idx, true);
+          idx++;
+        } else {
+          walk(child, 0, false);
+        }
+      }
+    } else if (tag === "ul") {
+      for (const child of Array.from(element.childNodes)) {
+        if (child.nodeType === Node.ELEMENT_NODE && (child as Element).tagName.toLowerCase() === "li") {
+          const liText = child.textContent?.trim() || "";
+          if (liText) {
+            blocks.push({
+              text: `• ${liText}`,
+              fontSize: 12,
+              bold: false,
+              italic: false,
+              spacing: 2,
+            });
+          }
+        } else {
+          walk(child, 0, false);
+        }
+      }
+    } else {
+      for (const child of Array.from(element.childNodes)) {
+        walk(child, listIndex, inList);
+      }
     }
   }
 

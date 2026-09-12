@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Contact Us | DocFlow",
+  title: "Contact Us | Docvanta",
   description:
-    "Get in touch with the DocFlow team. We'd love to hear your feedback, suggestions, or bug reports.",
+    "Get in touch with the Docvanta team. We'd love to hear your feedback, suggestions, or bug reports.",
   alternates: {
     canonical: `${SITE_URL}/contact`,
   },
@@ -24,7 +24,7 @@ export default function ContactPage() {
           <p className="text-muted-foreground mb-4">
             For general inquiries, feedback, or support:
           </p>
-            <a href="mailto:support@docflow.app" className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">support@docflow.app</a>
+            <a href="mailto:support@docvanta.app" className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">support@docvanta.app</a>
         </section>
 
         <section className="bg-card rounded-2xl border border-border p-8">
@@ -32,7 +32,7 @@ export default function ContactPage() {
           <p className="text-muted-foreground mb-4">
             Found a bug or have a feature request? Let us know and we&apos;ll look into it.
           </p>
-            <a href="mailto:bugs@docflow.app" className="inline-flex items-center justify-center px-6 py-3 rounded-xl border border-border text-foreground font-medium hover:bg-muted transition-colors">Report a Bug</a>
+            <a href="mailto:bugs@docvanta.app" className="inline-flex items-center justify-center px-6 py-3 rounded-xl border border-border text-foreground font-medium hover:bg-muted transition-colors">Report a Bug</a>
         </section>
 
         <section className="bg-card rounded-2xl border border-border p-8">

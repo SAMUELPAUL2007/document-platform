@@ -1,4 +1,4 @@
-# DocFlow
+# Docvanta
 
 Free online document tools — convert, edit, merge, compress, and share PDF files. No signup required. No watermarks. No AI processing.
 
@@ -9,8 +9,6 @@ Free online document tools — convert, edit, merge, compress, and share PDF fil
 - **OCR:** Extract text from existing PDF text layers
 - **Images to PDF:** Convert multiple images into a single PDF
 - **Document Editor:** Rich text editor with export to DOCX
-- **Spreadsheet Editor:** Excel-like editor with formula support
-- **Presentation Editor:** Create and export presentations to PPTX
 
 ## Tech Stack
 
@@ -55,7 +53,7 @@ All optional — the application works with zero configuration.
 | `RATE_LIMIT_DOWNLOAD_MAX` | `60` | Download rate limit |
 | `RATE_LIMIT_JOB_STATUS_MAX` | `30` | Job status check rate limit |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window (ms) |
-| `NEXT_PUBLIC_SITE_URL` | `https://docflow.app` | Canonical site URL for SEO |
+| `NEXT_PUBLIC_SITE_URL` | `https://docvanta.app` | Canonical site URL for SEO |
 
 ## Optional Dependencies
 

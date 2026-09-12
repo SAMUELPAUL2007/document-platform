@@ -30,7 +30,7 @@ export default function Header() {
               </svg>
             </div>
             <span className="text-lg font-bold text-foreground tracking-tight">
-              DocFlow
+              Docvanta
             </span>
           </Link>
 
@@ -86,18 +86,6 @@ export default function Header() {
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg hover:bg-muted"
             >
               Editor
-            </Link>
-            <Link
-              href="/spreadsheet"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg hover:bg-muted"
-            >
-              Sheets
-            </Link>
-            <Link
-              href="/presentation"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg hover:bg-muted"
-            >
-              Slides
             </Link>
             <Link
               href="/workspace"
@@ -169,20 +157,6 @@ export default function Header() {
                 className="block px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
               >
                 Editor
-              </Link>
-              <Link
-                href="/spreadsheet"
-                onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
-              >
-                Sheets
-              </Link>
-              <Link
-                href="/presentation"
-                onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
-              >
-                Slides
               </Link>
               <Link
                 href="/workspace"

@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 const tool = getToolById("ocr-pdf");
 
 export const metadata: Metadata = {
-  title: "OCR PDF — Free Online Tool | DocFlow",
+  title: "OCR PDF — Free Online Tool | Docvanta",
   description:
     "Extract embedded text layers from PDF documents. Free, no signup, no watermarks. Fast and secure.",
   keywords: ["OCR PDF", "extract text from PDF", "PDF text extraction", "PDF text layers"],

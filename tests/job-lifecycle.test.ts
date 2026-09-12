@@ -104,6 +104,69 @@ describe("Job Lifecycle", () => {
     });
   });
 
+  describe("sequential uploads (Process Another)", () => {
+    it("creates independent jobs with different IDs for sequential uploads", async () => {
+      const { processUpload } = await import("../lib/processing/job-manager");
+
+      const { job: job1, fileInfos: files1 } = await processUpload("split-pdf", makeFormDataWithFile());
+      expect(job1.id).toBeDefined();
+      expect(job1.state).toBe("QUEUED");
+      expect(files1.length).toBe(1);
+
+      const { job: job2, fileInfos: files2 } = await processUpload("split-pdf", makeFormDataWithFile());
+      expect(job2.id).toBeDefined();
+      expect(job2.state).toBe("QUEUED");
+      expect(files2.length).toBe(1);
+
+      expect(job1.id).not.toBe(job2.id);
+
+      const status1 = await getJobStatus(job1.id);
+      const status2 = await getJobStatus(job2.id);
+      expect(status1).toBeDefined();
+      expect(status1?.state).toBe("QUEUED");
+      expect(status2).toBeDefined();
+      expect(status2?.state).toBe("QUEUED");
+    });
+
+    it("each job stores its own file independently", async () => {
+      const { processUpload } = await import("../lib/processing/job-manager");
+
+      const fd1 = new FormData();
+      const blob1 = new Blob(["%PDF-1.4 content-one"], { type: "application/pdf" });
+      const file1 = new File([blob1], "first.pdf", { type: "application/pdf" });
+      fd1.append("files", file1);
+      fd1.append("toolId", "split-pdf");
+
+      const fd2 = new FormData();
+      const blob2 = new Blob(["%PDF-1.4 content-two"], { type: "application/pdf" });
+      const file2 = new File([blob2], "second.pdf", { type: "application/pdf" });
+      fd2.append("files", file2);
+      fd2.append("toolId", "split-pdf");
+
+      const { job: job1 } = await processUpload("split-pdf", fd1);
+      const { job: job2 } = await processUpload("split-pdf", fd2);
+
+      expect(job1.files.length).toBe(1);
+      expect(job2.files.length).toBe(1);
+      expect(job1.id).not.toBe(job2.id);
+    });
+
+    it("does not reuse previous job state after Process Another", async () => {
+      const { processUpload } = await import("../lib/processing/job-manager");
+
+      const { job: job1 } = await processUpload("split-pdf", makeFormDataWithFile());
+      cancelJob(job1.id);
+
+      const status1 = await getJobStatus(job1.id);
+      expect(status1?.state).toBe("CANCELLED");
+
+      const { job: job2 } = await processUpload("split-pdf", makeFormDataWithFile());
+      const status2 = await getJobStatus(job2.id);
+      expect(status2?.state).toBe("QUEUED");
+      expect(job2.id).not.toBe(job1.id);
+    });
+  });
+
   describe("duration diagnostics", () => {
     it("cancelled job has duration", async () => {
       const { processUpload } = await import("../lib/processing/job-manager");

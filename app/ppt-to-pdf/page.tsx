@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 const tool = getToolById("ppt-to-pdf");
 
 export const metadata: Metadata = {
-  title: "PowerPoint to PDF — Free Online Converter | DocFlow",
+  title: "PowerPoint to PDF — Free Online Converter | Docvanta",
   description:
     "Convert PowerPoint presentations to PDF format for free. No signup, no watermarks. Fast and secure online PPT to PDF converter.",
   keywords: ["PowerPoint to PDF", "convert PPTX to PDF", "free PDF converter"],

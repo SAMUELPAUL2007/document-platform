@@ -50,6 +50,12 @@ describe("Security headers middleware", () => {
     expect(pattern).toContain("sitemap.xml");
   });
 
+  it("excludes /api/upload from matcher to prevent request body buffering", async () => {
+    const mod = await import("../middleware");
+    const pattern = mod.config.matcher[0] as string;
+    expect(pattern).toContain("api/upload");
+  });
+
   it("applies to API routes", () => {
     const response = middleware(makeRequest("/api/health"));
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");

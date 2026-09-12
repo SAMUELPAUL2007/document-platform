@@ -1,49 +1,11 @@
-import { readFile, writeFile } from "fs/promises";
+import { readFile, writeFile, unlink, mkdir } from "fs/promises";
 import { join } from "path";
-import JSZip from "jszip";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { tmpdir } from "os";
+import { convertWithLibreOffice, findLibreOffice } from "./libreoffice";
 import type { Converter, ConverterInput, ConverterResult } from "../types";
+import { logger } from "../../logger";
 
-const FONT_SIZE = 14;
-const PAGE_MARGIN = 50;
-
-interface SlideContent {
-  title: string;
-  notes: string[];
-}
-
-async function parsePptx(buffer: Buffer): Promise<SlideContent[]> {
-  const zip = await JSZip.loadAsync(buffer);
-  const slides: SlideContent[] = [];
-
-  const slideFiles = Object.keys(zip.files)
-    .filter((f) => f.match(/ppt\/slides\/slide\d+\.xml$/))
-    .sort((a, b) => {
-      const numA = parseInt(a.match(/slide(\d+)\.xml/)?.[1] || "0", 10);
-      const numB = parseInt(b.match(/slide(\d+)\.xml/)?.[1] || "0", 10);
-      return numA - numB;
-    });
-
-  for (const slideFile of slideFiles) {
-    const xml = await zip.file(slideFile)!.async("string");
-    const texts: string[] = [];
-
-    const textMatches = xml.match(/<a:t[^>]*>([^<]*)<\/a:t>/g);
-    if (textMatches) {
-      for (const match of textMatches) {
-        const text = match.replace(/<[^>]+>/g, "").trim();
-        if (text) texts.push(text);
-      }
-    }
-
-    slides.push({
-      title: texts[0] || "",
-      notes: texts.slice(1),
-    });
-  }
-
-  return slides;
-}
+const CONVERSION_TIMEOUT_MS = 120_000;
 
 const pptxToPdfConverter: Converter = {
   id: "pptx-to-pdf",
@@ -57,85 +19,76 @@ const pptxToPdfConverter: Converter = {
     if (!file) {
       throw new Error("No file provided");
     }
-    const buffer = await readFile(join(input.jobDir, file.storedName));
 
-    const slides = await parsePptx(buffer);
-    if (slides.length === 0) {
-      throw new Error("No slides found in the presentation");
+    const soffice = await findLibreOffice();
+    if (!soffice) {
+      throw new Error(
+        "PPTX to PDF conversion requires LibreOffice, which is not installed on this system. " +
+          "Visual fidelity cannot be guaranteed without a proper rendering engine. " +
+          "Please install LibreOffice to enable PPTX to PDF conversion."
+      );
     }
 
-    const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const inputPath = join(input.jobDir, file.storedName);
+    const tempDir = join(tmpdir(), `pptx-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
-    const slideWidth = 720;
-    const slideHeight = 540;
+    try {
+      await mkdir(tempDir, { recursive: true });
 
-    for (const slide of slides) {
-      const page = pdfDoc.addPage([slideWidth, slideHeight]);
-      let y = slideHeight - PAGE_MARGIN;
+      logger.info("pptx_to_pdf_start", {
+        event: "pptx_to_pdf",
+        inputFile: file.originalName,
+      });
 
-      if (slide.title) {
-        page.drawText(slide.title, {
-          x: PAGE_MARGIN,
-          y,
-          size: 24,
-          font: boldFont,
-          color: rgb(0.1, 0.1, 0.1),
+      const result = await convertWithLibreOffice(inputPath, tempDir, "pdf", CONVERSION_TIMEOUT_MS);
+
+      if (!result.success || !result.outputPath) {
+        const errorMsg = result.error || "LibreOffice conversion failed";
+        logger.error("pptx_to_pdf_failed", {
+          event: "pptx_to_pdf",
+          error: errorMsg,
+          stderr: result.stderr,
         });
-        y -= 40;
+        throw new Error(`PPTX to PDF conversion failed: ${errorMsg}`);
       }
 
-      for (const note of slide.notes) {
-        if (y < PAGE_MARGIN + 20) break;
+      const pdfBuffer = await readFile(result.outputPath);
 
-        const words = note.split(/\s+/);
-        let currentLine = "";
-        const maxLineWidth = slideWidth - PAGE_MARGIN * 2;
+      if (pdfBuffer.length === 0) {
+        throw new Error("LibreOffice produced an empty PDF file");
+      }
 
-        for (const word of words) {
-          const testLine = currentLine ? `${currentLine} ${word}` : word;
-          const textWidth = font.widthOfTextAtSize(testLine, FONT_SIZE);
+      const baseName = file.originalName.replace(/\.(pptx?|ppt)$/i, "");
+      const outputFileName = `${baseName}.pdf`;
+      const outputPath = join(input.jobDir, outputFileName);
+      await writeFile(outputPath, pdfBuffer);
 
-          if (textWidth > maxLineWidth && currentLine) {
-            page.drawText(currentLine, {
-              x: PAGE_MARGIN,
-              y,
-              size: FONT_SIZE,
-              font,
-              color: rgb(0.2, 0.2, 0.2),
-            });
-            y -= 20;
-            currentLine = word;
-          } else {
-            currentLine = testLine;
-          }
+      logger.info("pptx_to_pdf_complete", {
+        event: "pptx_to_pdf",
+        inputSize: (await readFile(inputPath)).length,
+        outputSize: pdfBuffer.length,
+      });
+
+      return {
+        outputFileName,
+        outputMimeType: "application/pdf",
+        outputPath,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error("pptx_to_pdf_error", { event: "pptx_to_pdf", error: message });
+      throw error;
+    } finally {
+      try {
+        const files = await import("fs/promises").then((m) => m.readdir(tempDir, { withFileTypes: true }));
+        for (const f of files) {
+          await unlink(join(tempDir, f.name)).catch(() => {});
         }
-
-        if (currentLine) {
-          page.drawText(currentLine, {
-            x: PAGE_MARGIN,
-            y,
-            size: FONT_SIZE,
-            font,
-            color: rgb(0.2, 0.2, 0.2),
-          });
-          y -= 20;
-        }
+        await import("fs/promises").then((m) => m.rmdir(tempDir)).catch(() => {});
+      } catch {
+        // Best effort cleanup
       }
     }
-
-    const pdfBytes = await pdfDoc.save();
-    const baseName = file.originalName.replace(/\.(pptx?|ppt)$/i, "");
-    const outputFileName = `${baseName}.pdf`;
-    const outputPath = join(input.jobDir, outputFileName);
-    await writeFile(outputPath, pdfBytes);
-
-    return {
-      outputFileName,
-      outputMimeType: "application/pdf",
-      outputPath,
-    };
   },
 };
 

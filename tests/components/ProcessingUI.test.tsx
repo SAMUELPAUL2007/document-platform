@@ -4,11 +4,6 @@ import { render, screen } from "@testing-library/react";
 import ProcessingUI from "@/components/upload/ProcessingUI";
 
 describe("ProcessingUI", () => {
-  const defaultSnapshot = {
-    percent: 50,
-    stage: "processing" as const,
-  };
-
   it("renders uploading status text", () => {
     render(
       <ProcessingUI status="uploading" progress={25} />
@@ -16,16 +11,20 @@ describe("ProcessingUI", () => {
     expect(screen.getByText("Uploading your file...")).toBeTruthy();
   });
 
-  it("renders processing status text with stage label", () => {
+  it("renders processing indeterminate state when no snapshot percent", () => {
     render(
-      <ProcessingUI status="processing" progress={60} progressSnapshot={defaultSnapshot} />
+      <ProcessingUI status="processing" progress={0} />
     );
-    expect(screen.getByText("Processing")).toBeTruthy();
+    expect(screen.getByText("Converting your file...")).toBeTruthy();
   });
 
-  it("displays progress percentage in the circular indicator", () => {
+  it("displays progress percentage in the circular indicator when snapshot has percent", () => {
     render(
-      <ProcessingUI status="processing" progress={75} />
+      <ProcessingUI
+        status="processing"
+        progress={0}
+        progressSnapshot={{ percent: 75, stage: "processing" }}
+      />
     );
     expect(screen.getByText("75%")).toBeTruthy();
   });
@@ -34,16 +33,20 @@ describe("ProcessingUI", () => {
     render(
       <ProcessingUI
         status="processing"
-        progress={30}
+        progress={0}
         progressSnapshot={{ percent: 80, stage: "processing" }}
       />
     );
     expect(screen.getByText("80%")).toBeTruthy();
   });
 
-  it("renders progressbar with correct attributes", () => {
+  it("renders progressbar with correct attributes when snapshot has percent", () => {
     render(
-      <ProcessingUI status="processing" progress={50} />
+      <ProcessingUI
+        status="processing"
+        progress={0}
+        progressSnapshot={{ percent: 50, stage: "processing" }}
+      />
     );
     const progressbar = screen.getByRole("progressbar");
     expect(progressbar.getAttribute("aria-valuenow")).toBe("50");
@@ -54,7 +57,7 @@ describe("ProcessingUI", () => {
   it("shows cancel button when canCancel and onCancel are provided", () => {
     const onCancel = vi.fn();
     render(
-      <ProcessingUI status="processing" progress={50} onCancel={onCancel} canCancel={true} />
+      <ProcessingUI status="processing" progress={0} onCancel={onCancel} canCancel={true} />
     );
     const cancelBtn = screen.getByText("Cancel processing");
     expect(cancelBtn).toBeTruthy();
@@ -63,14 +66,14 @@ describe("ProcessingUI", () => {
   it("hides cancel button when canCancel is false", () => {
     const onCancel = vi.fn();
     render(
-      <ProcessingUI status="processing" progress={50} onCancel={onCancel} canCancel={false} />
+      <ProcessingUI status="processing" progress={0} onCancel={onCancel} canCancel={false} />
     );
     expect(screen.queryByText("Cancel processing")).toBeNull();
   });
 
   it("hides cancel button when onCancel is not provided", () => {
     render(
-      <ProcessingUI status="processing" progress={50} canCancel={true} />
+      <ProcessingUI status="processing" progress={0} canCancel={true} />
     );
     expect(screen.queryByText("Cancel processing")).toBeNull();
   });
@@ -79,7 +82,7 @@ describe("ProcessingUI", () => {
     render(
       <ProcessingUI
         status="processing"
-        progress={50}
+        progress={0}
         progressSnapshot={{ percent: 50, stage: "processing", message: "Processing page 3 of 10" }}
       />
     );
@@ -90,7 +93,7 @@ describe("ProcessingUI", () => {
     render(
       <ProcessingUI
         status="processing"
-        progress={30}
+        progress={0}
         progressSnapshot={{ percent: 30, stage: "processing", current: 3, total: 10 }}
       />
     );
@@ -101,32 +104,58 @@ describe("ProcessingUI", () => {
     render(
       <ProcessingUI
         status="processing"
-        progress={10}
+        progress={0}
         progressSnapshot={{ percent: 10, stage: "validating" }}
       />
     );
-    expect(screen.getByText("Validating file")).toBeTruthy();
+    expect(screen.getByText("Validating file...")).toBeTruthy();
   });
 
   it("shows loading stage label", () => {
     render(
       <ProcessingUI
         status="processing"
-        progress={20}
+        progress={0}
         progressSnapshot={{ percent: 20, stage: "loading" }}
       />
     );
-    expect(screen.getByText("Loading document")).toBeTruthy();
+    expect(screen.getByText("Loading document...")).toBeTruthy();
   });
 
   it("shows finalizing stage label", () => {
     render(
       <ProcessingUI
         status="processing"
-        progress={90}
+        progress={0}
         progressSnapshot={{ percent: 90, stage: "finalizing" }}
       />
     );
-    expect(screen.getByText("Saving output")).toBeTruthy();
+    expect(screen.getByText("Saving output...")).toBeTruthy();
+  });
+
+  it("shows completed state with checkmark", () => {
+    render(
+      <ProcessingUI status="complete" progress={100} />
+    );
+    expect(screen.getByText("✓")).toBeTruthy();
+    expect(screen.getByText("Conversion complete!")).toBeTruthy();
+  });
+
+  it("shows failed state", () => {
+    render(
+      <ProcessingUI status="error" progress={0} />
+    );
+    expect(screen.getByText("Converting your file...")).toBeTruthy();
+  });
+
+  it("shows queued state", () => {
+    render(
+      <ProcessingUI
+        status="processing"
+        progress={0}
+        progressSnapshot={{ percent: 0, stage: "queued" }}
+      />
+    );
+    expect(screen.getByText("Waiting in queue...")).toBeTruthy();
   });
 });

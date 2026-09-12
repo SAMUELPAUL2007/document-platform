@@ -103,6 +103,12 @@ function updateJob(jobId: string, updates: Partial<Job>): Job | undefined {
 
   if (updates.state && updates.state !== job.state) {
     if (!canTransition(job.state, updates.state)) {
+      const { state, ...rest } = updates;
+      if (Object.keys(rest).length > 0) {
+        const updated = { ...job, ...rest, updatedAt: Date.now() };
+        jobs.set(jobId, updated);
+        return updated;
+      }
       return job;
     }
   }
