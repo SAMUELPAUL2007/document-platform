@@ -421,3 +421,22 @@ describe("validate.ts - validateOoxmlOutput", () => {
     expect(result.issues.some((i) => i.code === "WRONG_MAGIC")).toBe(true);
   });
 });
+
+// ─── Promise.withResolvers regression ─────────────────────────
+
+describe("pdfjs-dist Node compatibility (Promise.withResolvers)", () => {
+  it("Promise.withResolvers is available in the runtime", () => {
+    expect(typeof Promise.withResolvers).toBe("function");
+  });
+
+  it("pdfjs-dist legacy build loads and parses a PDF without error", async () => {
+    const pdfBuf = await makePdf(2);
+    const doc = await pdfjsLib.getDocument({ data: pdfBuf }).promise;
+    expect(doc.numPages).toBe(2);
+
+    const page = await doc.getPage(1);
+    const viewport = page.getViewport({ scale: 1 });
+    expect(viewport.width).toBeCloseTo(612, 0);
+    expect(viewport.height).toBeCloseTo(792, 0);
+  });
+});

@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for Next.js + LibreOffice headless on Render Free tier
 # Stage 1: Build Next.js application
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Production runtime with LibreOffice
-FROM node:20-slim AS runtime
+FROM node:22-slim AS runtime
 
 # Install LibreOffice headless for document conversion
 # Packages for DOCX/PPTX → PDF conversion
