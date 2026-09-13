@@ -6,16 +6,12 @@ WORKDIR /app
 
 # Copy package files first (better Docker layer caching)
 COPY package*.json ./
-COPY prisma ./prisma/
 
 # Install all dependencies (including devDependencies for build)
 RUN npm ci
 
 # Copy source code
 COPY . .
-
-# Generate Prisma client
-RUN npx prisma generate
 
 # Build Next.js application
 RUN npm run build
@@ -24,12 +20,11 @@ RUN npm run build
 FROM node:20-slim AS runtime
 
 # Install LibreOffice headless for document conversion
-# Minimal packages for PPTX/DOCX/XLSX → PDF conversion
+# Packages for DOCX/PPTX → PDF conversion
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice-core \
     libreoffice-writer \
-    libreoffice-calc \
     libreoffice-impress \
     # Clean up to reduce image size
     && apt-get clean \
@@ -49,13 +44,9 @@ COPY --from=builder --chown=appuser:appuser /app/.next ./.next
 COPY --from=builder --chown=appuser:appuser /app/public ./public
 COPY --from=builder --chown=appuser:appuser /app/package.json ./
 COPY --from=builder --chown=appuser:appuser /app/next.config.ts ./
-COPY --from=builder --chown=appuser:appuser /app/prisma ./prisma
 
 # Copy node_modules from builder
 COPY --from=builder --chown=appuser:appuser /app/node_modules ./node_modules
-
-# Copy Prisma generated client
-COPY --from=builder --chown=appuser:appuser /app/node_modules/.prisma ./node_modules/.prisma
 
 # Set environment variables for production
 ENV NODE_ENV=production
@@ -69,8 +60,7 @@ USER appuser
 
 # Health check - verify LibreOffice is available and app responds
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD node -e "try { require('child_process').execSync('libreoffice --version', {stdio: 'pipe'}); process.exit(0); } catch(e) { process.exit(1); }" && \
-        curl -f http://localhost:3000/api/health || exit 1
+    CMD node -e "const http = require('http'); const { execSync } = require('child_process'); try { execSync('libreoffice --version', {stdio: 'pipe'}); } catch(e) { process.exit(1); } const req = http.get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1)); req.setTimeout(5000, () => { req.destroy(); process.exit(1); });"
 
 # Start Next.js server
 CMD ["npm", "start"]
