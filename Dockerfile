@@ -55,6 +55,9 @@ ENV PORT=3000
 # Expose port
 EXPOSE 3000
 
+# Create writable temp directory for conversion jobs
+RUN mkdir -p /app/.tmp && chown appuser:appuser /app/.tmp
+
 # Switch to non-root user
 USER appuser
 
