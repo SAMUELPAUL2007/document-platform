@@ -65,10 +65,17 @@ export interface Converter {
   convert(input: ConverterInput): Promise<ConverterResult>;
 }
 
+/**
+ * Page size constants — canonical source is page-dims.ts.
+ * Re-exported here for backward compatibility.
+ */
+import { PAGE_DIMENSIONS, type PageSize } from "./page-dims";
+
+/** @deprecated Use PAGE_DIMENSIONS from page-dims.ts for standard sizes */
 export const PAGE_SIZES = {
-  a4: { width: 595.28, height: 841.89 },
-  letter: { width: 612, height: 792 },
+  a4: PAGE_DIMENSIONS.a4,
+  letter: PAGE_DIMENSIONS.letter,
   original: null,
 } as const;
 
-export type PageSize = keyof typeof PAGE_SIZES;
+export type { PageSize };

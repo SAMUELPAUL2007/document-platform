@@ -34,11 +34,9 @@ describe("Health API", () => {
     const body = await response.json();
     expect(body.dependencies).toBeDefined();
     expect(Array.isArray(body.dependencies)).toBe(true);
-    expect(body.dependencies.length).toBe(2);
-    expect(body.dependencies[0].name).toBe("qpdf");
-    expect(body.dependencies[1].name).toBe("libreoffice");
+    expect(body.dependencies.length).toBe(1);
+    expect(body.dependencies[0].name).toBe("libreoffice");
     expect(typeof body.dependencies[0].available).toBe("boolean");
-    expect(typeof body.dependencies[1].available).toBe("boolean");
   });
 
   it("returns X-Request-ID header", async () => {

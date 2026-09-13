@@ -5,7 +5,7 @@ export default function Footer() {
   return (
     <footer className="bg-foreground text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 min-w-0">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -16,7 +16,7 @@ export default function Footer() {
               <span className="text-lg font-bold tracking-tight">Docvanta</span>
             </Link>
             <p className="text-sm text-slate-400 max-w-xs leading-relaxed">
-              Free online document tools. Convert, edit, merge, compress, and share your PDF files securely.
+              Free online document tools. Convert, merge, compress, and protect your PDF files securely.
             </p>
           </div>
 
@@ -26,7 +26,7 @@ export default function Footer() {
               <ul className="space-y-2">
                 {tools
                   .filter((t) => t.category === cat.id)
-                  .slice(0, 4)
+                  .slice(0, 5)
                   .map((tool) => (
                     <li key={tool.id}>
                       <Link

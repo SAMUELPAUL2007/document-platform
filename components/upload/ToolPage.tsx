@@ -5,6 +5,7 @@ import DropZone from "@/components/upload/DropZone";
 import FileCard from "@/components/upload/FileCard";
 import ProcessingUI from "@/components/upload/ProcessingUI";
 import ResultUI from "@/components/upload/ResultUI";
+import AdSlot from "@/components/ui/AdSlot";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
 import { uploadFiles, pollJobStatus, getDownloadUrl, cancelJobApi } from "@/lib/api";
@@ -17,6 +18,8 @@ import type { Tool } from "@/lib/tools";
 interface ToolPageProps {
   tool: Tool;
   options?: Record<string, string>;
+  optionsPanel?: React.ReactNode;
+  optionsLabel?: string;
 }
 
 type PageStatus = "idle" | "uploading" | "processing" | "complete" | "error" | "cancelled";
@@ -30,11 +33,10 @@ interface PageState {
   resultFileName?: string;
 }
 
-export default function ToolPage({ tool, options: externalOptions }: ToolPageProps) {
+export default function ToolPage({ tool, options: externalOptions, optionsPanel, optionsLabel }: ToolPageProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [state, setState] = useState<PageState>({ status: "idle", progress: 0 });
   const abortControllerRef = useRef<AbortController | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
@@ -188,179 +190,205 @@ export default function ToolPage({ tool, options: externalOptions }: ToolPagePro
   const isCancelled = state.status === "cancelled";
   const hasFiles = files.length > 0;
   const canAddMore = hasFiles && !isProcessing && !isComplete && !isError && !isCancelled && (!tool.maxFiles || files.length < tool.maxFiles);
+  const showOptionsPanel = !!optionsPanel && (hasFiles || isProcessing);
 
   return (
-    <main className="min-h-[calc(100vh-4rem)] bg-surface" role="main">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <div className="text-center mb-8 animate-slide-up">
-          <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
-            {tool.name}
-          </h1>
-          <p className="mt-2 text-lg text-muted-foreground">{tool.description}</p>
-        </div>
+    <main className="bg-surface" role="main">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div className={`tool-page-layout ${showOptionsPanel ? "tool-page-layout--with-options" : "tool-page-layout--with-ad"}`}>
+          {/* Main tool column */}
+          <div className="tool-page-main">
+            <div className="text-center mb-8 animate-slide-up">
+              <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
+                {tool.name}
+              </h1>
+              <p className="mt-2 text-lg text-muted-foreground">{tool.description}</p>
+            </div>
 
-        <div className="sr-only" aria-live="polite" aria-atomic="true">
-          {state.status === "uploading" && "Uploading your file..."}
-          {state.status === "processing" && "Converting your file..."}
-          {state.status === "complete" && "Conversion complete. Your file is ready to download."}
-          {state.status === "error" && `Conversion failed: ${state.error}`}
-          {state.status === "cancelled" && "Conversion was cancelled."}
-        </div>
+            <div className="sr-only" aria-live="polite" aria-atomic="true">
+              {state.status === "uploading" && "Uploading your file..."}
+              {state.status === "processing" && "Converting your file..."}
+              {state.status === "complete" && "Conversion complete. Your file is ready to download."}
+              {state.status === "error" && `Conversion failed: ${state.error}`}
+              {state.status === "cancelled" && "Conversion was cancelled."}
+            </div>
 
-        {/* DropZone: full size when no files, hidden when processing/complete/error/cancelled */}
-        {!hasFiles && !isComplete && !isError && !isCancelled && (
-          <div className="animate-slide-up" style={{ animationDelay: "0.05s" }}>
-            <DropZone
-              accept={tool.accept}
-              maxFiles={tool.maxFiles}
-              onFilesSelected={handleFilesSelected}
-            />
-          </div>
-        )}
-
-        {/* Selected files + compact controls */}
-        {hasFiles && !isComplete && !isError && !isCancelled && (
-          <div className="space-y-3 animate-slide-up">
-            {/* File cards */}
-            <div className="space-y-2">
-              {files.map((file, i) => (
-                <FileCard
-                  key={`${file.name}-${i}`}
-                  file={file}
-                  status={
-                    isProcessing
-                      ? state.status === "uploading"
-                        ? "uploading"
-                        : "processing"
-                      : "pending"
-                  }
-                  progress={isProcessing ? state.progress : 0}
-                  onRemove={
-                    !isProcessing ? () => handleRemoveFile(i) : undefined
-                  }
+            {/* DropZone: full size when no files */}
+            {!hasFiles && !isComplete && !isError && !isCancelled && (
+              <div className="animate-slide-up" style={{ animationDelay: "0.05s" }}>
+                <DropZone
+                  accept={tool.accept}
+                  maxFiles={tool.maxFiles}
+                  onFilesSelected={handleFilesSelected}
                 />
-              ))}
-            </div>
-
-            {/* Add another file */}
-            {canAddMore && (
-              <DropZone
-                accept={tool.accept}
-                maxFiles={tool.maxFiles}
-                onFilesSelected={handleFilesSelected}
-                compact
-              />
-            )}
-
-            {/* Processing UI */}
-            {isProcessing && (
-              <ProcessingUI
-                status={state.status === "uploading" ? "uploading" : "processing"}
-                progress={state.progress}
-                progressSnapshot={state.progressSnapshot}
-                onCancel={handleCancel}
-                canCancel={state.status === "processing"}
-              />
-            )}
-
-            {/* Convert button */}
-            {!isProcessing && (
-              <div className="flex justify-center pt-2">
-                <Button size="lg" onClick={handleProcess}>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                  </svg>
-                  Convert
-                </Button>
               </div>
             )}
-          </div>
-        )}
 
-        {/* Result state */}
-        {isComplete && (
-          <ResultUI
-            toolName={tool.name}
-            fileName={state.resultFileName}
-            onDownload={handleDownload}
-            onReset={handleReset}
-          />
-        )}
+            {/* Selected files + controls */}
+            {hasFiles && !isComplete && !isError && !isCancelled && (
+              <div className="space-y-3 animate-slide-up">
+                {/* File cards */}
+                <div className="space-y-2">
+                  {files.map((file, i) => (
+                    <FileCard
+                      key={`${file.name}-${i}`}
+                      file={file}
+                      status={
+                        isProcessing
+                          ? state.status === "uploading"
+                            ? "uploading"
+                            : "processing"
+                          : "pending"
+                      }
+                      progress={isProcessing ? state.progress : 0}
+                      onRemove={
+                        !isProcessing ? () => handleRemoveFile(i) : undefined
+                      }
+                    />
+                  ))}
+                </div>
 
-        {/* Cancelled state */}
-        {isCancelled && (
-          <div className="mt-6 p-6 rounded-2xl bg-muted border border-border animate-fade-in text-center" role="status">
-            <p className="text-sm font-semibold text-foreground">Conversion Cancelled</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              The operation was cancelled. No output was generated.
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-3">
-              <Button variant="secondary" size="sm" onClick={handleReset}>
-                Convert another file
-              </Button>
-            </div>
-          </div>
-        )}
+                {/* Add another file */}
+                {canAddMore && (
+                  <DropZone
+                    accept={tool.accept}
+                    maxFiles={tool.maxFiles}
+                    onFilesSelected={handleFilesSelected}
+                    compact
+                  />
+                )}
 
-        {/* Error state */}
-        {isError && (
-          <div className="mt-6 p-6 rounded-2xl bg-danger-light border border-red-200 animate-fade-in" role="alert">
-            <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-danger shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-              </svg>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-red-800">Conversion Failed</p>
-                <p className="text-sm text-red-700 mt-1">{state.error}</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-center gap-3">
-              <Button variant="secondary" size="sm" onClick={handleReset}>
-                Try again
-              </Button>
-              <Button variant="secondary" size="sm" onClick={handleReset}>
-                Convert another file
-              </Button>
-            </div>
-          </div>
-        )}
+                {/* Processing UI */}
+                {isProcessing && (
+                  <ProcessingUI
+                    status={state.status === "uploading" ? "uploading" : "processing"}
+                    progress={state.progress}
+                    progressSnapshot={state.progressSnapshot}
+                    onCancel={handleCancel}
+                    canCancel={state.status === "processing"}
+                  />
+                )}
 
-        <div className="mt-12 p-6 rounded-2xl bg-white border border-border">
-          <h3 className="text-sm font-semibold text-foreground mb-2">How it works</h3>
-          <ol className="space-y-2 text-sm text-muted-foreground">
-            <li className="flex items-start gap-2">
-              <span className="w-5 h-5 rounded-full bg-primary-light text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
-              Upload your {tool.accept.replace(/\./g, "").toUpperCase().split(",")[0]} files
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="w-5 h-5 rounded-full bg-primary-light text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-              We convert your files securely on our servers
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="w-5 h-5 rounded-full bg-primary-light text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
-              Download your converted files instantly
-            </li>
-          </ol>
-        </div>
-
-        <div className="mt-8">
-          <h3 className="text-sm font-semibold text-foreground mb-3">Related tools</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {getToolsByCategory(tool.category)
-              .filter((t) => t.id !== tool.id)
-              .slice(0, 4)
-              .map((related) => (
-                <Link href={related.href} key={related.id} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-surface transition-colors">
-                  <span className="w-8 h-8 rounded-lg bg-primary-light text-primary text-sm font-bold flex items-center justify-center shrink-0">
-                    {related.name.charAt(0)}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{related.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{related.description}</p>
+                {/* Primary action button (no options panel) */}
+                {!isProcessing && !showOptionsPanel && (
+                  <div className="flex justify-center pt-2">
+                    <Button size="lg" onClick={handleProcess}>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      {tool.actionLabel}
+                    </Button>
                   </div>
-                </Link>
-              ))}
+                )}
+              </div>
+            )}
+
+            {/* Result state */}
+            {isComplete && (
+              <ResultUI
+                toolName={tool.name}
+                fileName={state.resultFileName}
+                onDownload={handleDownload}
+                onReset={handleReset}
+              />
+            )}
+
+            {/* Cancelled state */}
+            {isCancelled && (
+              <div className="mt-6 p-6 rounded-2xl bg-muted border border-border animate-fade-in text-center" role="status">
+                <p className="text-sm font-semibold text-foreground">Conversion Cancelled</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  The operation was cancelled. No output was generated.
+                </p>
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <Button variant="secondary" size="sm" onClick={handleReset}>
+                    Convert another file
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Error state */}
+            {isError && (
+              <div className="mt-6 p-6 rounded-2xl bg-danger-light border border-red-200 animate-fade-in" role="alert">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-danger shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-red-800">Conversion Failed</p>
+                    <p className="text-sm text-red-700 mt-1">{state.error}</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <Button variant="secondary" size="sm" onClick={handleReset}>
+                    Try again
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={handleReset}>
+                    Convert another file
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom ad — inside main content flow */}
+            <div className="mt-6 flex justify-center">
+              <AdSlot placement="tool-bottom" size="728x90" />
+            </div>
+
+            {/* Related tools — below bottom ad, inside main content flow */}
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Related tools</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {getToolsByCategory(tool.category)
+                  .filter((t) => t.id !== tool.id)
+                  .slice(0, 4)
+                  .map((related) => (
+                    <Link href={related.href} key={related.id} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-surface transition-colors">
+                      <span className="w-8 h-8 rounded-lg bg-primary-light text-primary text-sm font-bold flex items-center justify-center shrink-0">
+                        {related.name.charAt(0)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{related.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{related.description}</p>
+                      </div>
+                    </Link>
+                  ))}
+              </div>
+            </div>
+
           </div>
+
+          {/* Options sidebar — desktop only, when tool has options and files are selected */}
+          {showOptionsPanel && (
+            <aside className="tool-page-options-panel" aria-label={optionsLabel || "Tool options"}>
+              <div className="tool-page-options-sticky">
+                {optionsLabel && (
+                  <h2 className="text-sm font-semibold text-foreground mb-3">{optionsLabel}</h2>
+                )}
+                {optionsPanel}
+                {!isProcessing && (
+                  <div className="mt-4">
+                    <Button size="lg" className="w-full" onClick={handleProcess}>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      {tool.actionLabel}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </aside>
+          )}
+
+          {/* Right-side ad — desktop only, when NO options panel */}
+          {!showOptionsPanel && (
+            <aside className="tool-page-ad-sidebar" aria-label="Advertisement">
+              <div className="tool-page-ad-sticky">
+                <AdSlot placement="tool-sidebar" size="160x600" />
+              </div>
+            </aside>
+          )}
         </div>
       </div>
     </main>

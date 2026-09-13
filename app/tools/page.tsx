@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "All Tools",
-  description: "Browse all Docvanta document tools — convert, edit, organize, optimize, OCR, and share PDFs and office documents.",
+  description: "Browse all Docvanta document tools — convert, organize, optimize, and compress PDFs and office documents.",
   alternates: {
     canonical: `${SITE_URL}/tools`,
   },

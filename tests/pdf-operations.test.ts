@@ -11,7 +11,6 @@ import reorderPagesConverter from "../lib/processing/converters/reorder-pages";
 import duplicatePagesConverter from "../lib/processing/converters/duplicate-pages";
 import compressPdfConverter from "../lib/processing/converters/compress-pdf";
 import ocrPdfConverter from "../lib/processing/converters/ocr-pdf";
-import protectPdfConverter from "../lib/processing/converters/protect-pdf";
 import type { ConverterInput, JobFile } from "../lib/processing/types";
 
 const TEST_DIR = join(process.cwd(), ".tmp", "test-pdf-operations");
@@ -359,7 +358,7 @@ describe("duplicate-pages converter", () => {
     expect(pdfDoc.getPageCount()).toBe(6);
   });
 
-  it("duplicates specific pages 3 times", async () => {
+  it("duplicates only selected pages", async () => {
     await createTestPdf("dup-specific.pdf", 4);
 
     const input = makeInput([makeJobFile("dup-specific.pdf")], {
@@ -371,10 +370,10 @@ describe("duplicate-pages converter", () => {
 
     const pdfBuffer = await readFile(result.outputPath);
     const pdfDoc = await PDFDocument.load(pdfBuffer);
-    expect(pdfDoc.getPageCount()).toBe(8);
+    expect(pdfDoc.getPageCount()).toBe(6);
   });
 
-  it("duplicates a range of pages", async () => {
+  it("duplicates a range of pages only", async () => {
     await createTestPdf("dup-range.pdf", 5);
 
     const input = makeInput([makeJobFile("dup-range.pdf")], {
@@ -386,7 +385,22 @@ describe("duplicate-pages converter", () => {
 
     const pdfBuffer = await readFile(result.outputPath);
     const pdfDoc = await PDFDocument.load(pdfBuffer);
-    expect(pdfDoc.getPageCount()).toBe(8);
+    expect(pdfDoc.getPageCount()).toBe(6);
+  });
+
+  it("duplicates a single page multiple times", async () => {
+    await createTestPdf("dup-one.pdf", 5);
+
+    const input = makeInput([makeJobFile("dup-one.pdf")], {
+      pages: "3",
+      count: "4",
+    });
+
+    const result = await duplicatePagesConverter.convert(input);
+
+    const pdfBuffer = await readFile(result.outputPath);
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    expect(pdfDoc.getPageCount()).toBe(4);
   });
 });
 
@@ -542,83 +556,6 @@ describe("ocr-pdf converter", () => {
   });
 });
 
-describe("protect-pdf converter", () => {
-  it("adds password protection to a PDF", async () => {
-    const { findQpdf } = await import("../lib/processing/converters/qpdf");
-    const qpdfPath = await findQpdf();
-    if (!qpdfPath) {
-      console.log("  ⊘ Skipping: qpdf not installed");
-      return;
-    }
-
-    await createTestPdf("protect-test.pdf", 2);
-
-    const input = makeInput(
-      [makeJobFile("protect-test.pdf")],
-      { password: "secret123" }
-    );
-
-    const result = await protectPdfConverter.convert(input);
-    expect(result.outputMimeType).toBe("application/pdf");
-    expect(result.outputFileName).toBe("protect-test_protected.pdf");
-
-    const pdfBuffer = await readFile(result.outputPath);
-    expect(pdfBuffer.length).toBeGreaterThan(0);
-  });
-
-  it("throws when no password provided", async () => {
-    await createTestPdf("protect-nopwd.pdf", 1);
-
-    const input = makeInput([makeJobFile("protect-nopwd.pdf")]);
-
-    await expect(protectPdfConverter.convert(input)).rejects.toThrow(
-      "A password is required to protect the PDF"
-    );
-  });
-
-  it("throws with clear error when qpdf is not installed", async () => {
-    const { findQpdf } = await import("../lib/processing/converters/qpdf");
-    const qpdfPath = await findQpdf();
-    if (qpdfPath) {
-      console.log("  ⊘ Skipping: qpdf is installed");
-      return;
-    }
-
-    await createTestPdf("protect-noqpdf.pdf", 1);
-
-    const input = makeInput(
-      [makeJobFile("protect-noqpdf.pdf")],
-      { password: "test123" }
-    );
-
-    await expect(protectPdfConverter.convert(input)).rejects.toThrow(
-      "Password protection failed"
-    );
-  });
-
-  it("preserves page count after protection", async () => {
-    const { findQpdf } = await import("../lib/processing/converters/qpdf");
-    const qpdfPath = await findQpdf();
-    if (!qpdfPath) {
-      console.log("  ⊘ Skipping: qpdf not installed");
-      return;
-    }
-
-    await createTestPdf("protect-pages.pdf", 4);
-
-    const input = makeInput(
-      [makeJobFile("protect-pages.pdf")],
-      { password: "mypassword" }
-    );
-
-    const result = await protectPdfConverter.convert(input);
-
-    const pdfBuffer = await readFile(result.outputPath);
-    const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
-    expect(pdfDoc.getPageCount()).toBe(4);
-  });
-});
-
 describe("converter registry", () => {
   it("registers all converters", async () => {
     const { listConverters } = await import("../lib/processing/converters");
@@ -635,15 +572,12 @@ describe("converter registry", () => {
     expect(converterIds).toContain("reorder-pages");
     expect(converterIds).toContain("duplicate-pages");
     expect(converterIds).toContain("docx-to-pdf");
-    expect(converterIds).toContain("xlsx-to-pdf");
     expect(converterIds).toContain("pptx-to-pdf");
     expect(converterIds).toContain("pdf-to-docx");
-    expect(converterIds).toContain("pdf-to-xlsx");
     expect(converterIds).toContain("pdf-to-pptx");
     expect(converterIds).toContain("compress-pdf");
     expect(converterIds).toContain("ocr-pdf");
-    expect(converterIds).toContain("protect-pdf");
-    expect(converterIds.length).toBe(19);
+    expect(converterIds.length).toBe(16);
   });
 
   it("retrieves converters by ID", async () => {
@@ -669,14 +603,6 @@ describe("converter registry", () => {
     const wordToPdf = getConverter("word-to-pdf");
     expect(wordToPdf).toBeDefined();
     expect(wordToPdf?.id).toBe("docx-to-pdf");
-
-    const pdfToExcel = getConverter("pdf-to-excel");
-    expect(pdfToExcel).toBeDefined();
-    expect(pdfToExcel?.id).toBe("pdf-to-xlsx");
-
-    const excelToPdf = getConverter("excel-to-pdf");
-    expect(excelToPdf).toBeDefined();
-    expect(excelToPdf?.id).toBe("xlsx-to-pdf");
 
     const pdfToPpt = getConverter("pdf-to-ppt");
     expect(pdfToPpt).toBeDefined();
@@ -705,7 +631,6 @@ describe("converter registry", () => {
     expect(hasConverter("rotate-pdf")).toBe(true);
     expect(hasConverter("compress-pdf")).toBe(true);
     expect(hasConverter("ocr-pdf")).toBe(true);
-    expect(hasConverter("protect-pdf")).toBe(true);
     expect(hasConverter("nonexistent-tool")).toBe(false);
   });
 });

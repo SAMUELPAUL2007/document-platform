@@ -1,14 +1,15 @@
 import Hero from "@/components/home/Hero";
 import PopularTools from "@/components/home/PopularTools";
 import FeatureCategories from "@/components/home/FeatureCategories";
+import AllToolsDirectory from "@/components/home/AllToolsDirectory";
 import RecentActivity from "@/components/home/RecentActivity";
 import { SITE_URL } from "@/lib/constants";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Docvanta — Free Online Document Tools | Convert, Edit, Merge PDFs",
+  title: "Docvanta — Free Online Document Tools | Convert, Merge, Compress PDFs",
   description:
-    "Convert, edit, merge, compress, OCR, and share your PDF documents for free. No signup required. Fast, secure, and works right in your browser.",
+    "Convert, merge, compress, OCR, and protect your PDF documents for free. No signup required. Fast, secure, and works right in your browser.",
   keywords: [
     "PDF converter",
     "PDF to Word",
@@ -16,12 +17,11 @@ export const metadata: Metadata = {
     "compress PDF",
     "OCR PDF",
     "free document tools",
-    "online PDF editor",
   ],
   openGraph: {
     title: "Docvanta — Free Online Document Tools",
     description:
-      "Convert, edit, merge, compress, and share your PDF documents. 100% free, no signup required.",
+      "Convert, merge, compress, and protect your PDF documents. 100% free, no signup required.",
     url: SITE_URL,
     type: "website",
   },
@@ -37,7 +37,7 @@ export default function HomePage() {
     name: "Docvanta",
     url: SITE_URL,
     description:
-      "Convert, edit, merge, compress, OCR, and share your PDF documents for free. No signup required. Fast, secure, and works right in your browser.",
+      "Convert, merge, compress, OCR, and protect your PDF documents for free. No signup required. Fast, secure, and works right in your browser.",
     applicationCategory: "UtilitiesApplication",
     operatingSystem: "Any",
     offers: {
@@ -48,7 +48,6 @@ export default function HomePage() {
     featureList: [
       "PDF to Word conversion",
       "Word to PDF conversion",
-      "PDF to Excel conversion",
       "PDF to PowerPoint conversion",
       "Merge PDF files",
       "Split PDF files",
@@ -57,7 +56,6 @@ export default function HomePage() {
       "Password protect PDF",
       "Images to PDF",
       "PDF to JPG/PNG",
-      "Online document editor",
     ],
   };
 
@@ -71,6 +69,7 @@ export default function HomePage() {
       <PopularTools />
       <RecentActivity />
       <FeatureCategories />
+      <AllToolsDirectory />
 
       <section className="py-16 sm:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

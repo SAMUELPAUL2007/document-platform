@@ -6,8 +6,17 @@ import { logger } from "@/lib/logger";
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 const JOB_MAX_AGE_MS = 60 * 60 * 1000;
 
-let cleanupTimer: ReturnType<typeof setInterval> | null = null;
-let startupChecked = false;
+// ─── HMR-safe global state ──────────────────────────────────
+const g = globalThis as unknown as {
+  __docvanta_cleanupTimer?: ReturnType<typeof setInterval> | null;
+  __docvanta_startupChecked?: boolean;
+};
+
+let cleanupTimer: ReturnType<typeof setInterval> | null = g.__docvanta_cleanupTimer ?? null;
+g.__docvanta_cleanupTimer = cleanupTimer;
+
+let startupChecked = g.__docvanta_startupChecked ?? false;
+g.__docvanta_startupChecked = startupChecked;
 
 export async function cleanupTempDir(): Promise<number> {
   let removed = 0;
@@ -44,7 +53,6 @@ export function runCleanupCycle(): void {
     logger.warn("cleanup_cycle_error", { error: err instanceof Error ? err.message : "unknown" });
   });
   try {
-// eslint-disable-next-line @typescript-eslint/no-require-imports
     const { recoverStuckJobs } = require("./job-manager");
     recoverStuckJobs();
   } catch (err) {
@@ -55,6 +63,7 @@ export function runCleanupCycle(): void {
 async function runStartupChecks(): Promise<void> {
   if (startupChecked) return;
   startupChecked = true;
+  g.__docvanta_startupChecked = true;
   try {
     const { checkDependencies } = await import("@/lib/startup-checks");
     await checkDependencies();
@@ -72,6 +81,8 @@ export function startCleanupScheduler(): void {
     runCleanupCycle();
   }, CLEANUP_INTERVAL_MS);
 
+  g.__docvanta_cleanupTimer = cleanupTimer;
+
   if (cleanupTimer.unref) {
     cleanupTimer.unref();
   }
@@ -81,5 +92,6 @@ export function stopCleanupScheduler(): void {
   if (cleanupTimer) {
     clearInterval(cleanupTimer);
     cleanupTimer = null;
+    g.__docvanta_cleanupTimer = null;
   }
 }

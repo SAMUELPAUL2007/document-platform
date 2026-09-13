@@ -93,28 +93,28 @@ describe("Rate Limiter", () => {
   describe("per-tool upload policies", () => {
     it("returns heavy policy for ocr-pdf", () => {
       const policy = getToolUploadPolicy("ocr-pdf");
-      expect(policy.maxRequests).toBe(10);
+      expect(policy.maxRequests).toBe(20);
       expect(policy.windowMs).toBe(60_000);
     });
 
     it("returns heavy policy for compress-pdf", () => {
       const policy = getToolUploadPolicy("compress-pdf");
-      expect(policy.maxRequests).toBe(10);
+      expect(policy.maxRequests).toBe(20);
     });
 
     it("returns normal policy for pdf-to-word", () => {
       const policy = getToolUploadPolicy("pdf-to-word");
-      expect(policy.maxRequests).toBe(15);
+      expect(policy.maxRequests).toBe(30);
     });
 
     it("returns normal policy for images-to-pdf", () => {
       const policy = getToolUploadPolicy("images-to-pdf");
-      expect(policy.maxRequests).toBe(15);
+      expect(policy.maxRequests).toBe(30);
     });
 
     it("returns default policy for unknown tools", () => {
       const policy = getToolUploadPolicy("unknown-tool");
-      expect(policy.maxRequests).toBe(20);
+      expect(policy.maxRequests).toBe(40);
     });
 
     it("heavy tools are rate-limited more strictly", () => {
@@ -127,23 +127,23 @@ describe("Rate Limiter", () => {
   });
 
   describe("download policy", () => {
-    it("returns 60 requests per minute", () => {
+    it("returns 120 requests per minute", () => {
       const policy = getDownloadPolicy();
-      expect(policy.maxRequests).toBe(60);
+      expect(policy.maxRequests).toBe(120);
       expect(policy.windowMs).toBe(60_000);
     });
 
-    it("allows 60 downloads within window", () => {
+    it("allows 120 downloads within window", () => {
       const policy = getDownloadPolicy();
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 120; i++) {
         const result = checkRateLimit(`dl-test-${i}`, policy);
         expect(result.allowed).toBe(true);
       }
     });
 
-    it("rejects 61st download", () => {
+    it("rejects 121st download", () => {
       const policy = getDownloadPolicy();
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 120; i++) {
         checkRateLimit("dl-burst", policy);
       }
       const result = checkRateLimit("dl-burst", policy);

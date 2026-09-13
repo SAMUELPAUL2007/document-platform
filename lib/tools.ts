@@ -7,15 +7,16 @@ export interface Tool {
   href: string;
   accept: string;
   maxFiles?: number;
+  /** Primary action button label. E.g. "Convert to Word", "Compress PDF", "Merge files" */
+  actionLabel: string;
+  /** Whether this tool has configurable options that should appear in a sidebar panel */
+  hasOptions?: boolean;
 }
 
 export type ToolCategory =
   | "convert"
-  | "edit"
   | "organize"
-  | "optimize"
-  | "ocr"
-  | "share";
+  | "optimize";
 
 export interface Category {
   id: ToolCategory;
@@ -32,34 +33,16 @@ export const categories: Category[] = [
     icon: "arrows-right-left",
   },
   {
-    id: "edit",
-    name: "Edit",
-    description: "Modify and annotate your PDF documents",
-    icon: "pencil",
-  },
-  {
     id: "organize",
-    name: "Organize",
+    name: "Organize PDF",
     description: "Manage, merge, split, and reorder pages",
     icon: "folder-open",
   },
   {
     id: "optimize",
     name: "Optimize",
-    description: "Compress and optimize documents for web",
+    description: "Compress, protect, and optimize documents",
     icon: "chart-bar",
-  },
-  {
-    id: "ocr",
-    name: "OCR",
-    description: "Extract and work with text from PDF documents",
-    icon: "document-text",
-  },
-  {
-    id: "share",
-    name: "Share",
-    description: "Protect and share your documents securely",
-    icon: "arrow-up-tray",
   },
 ];
 
@@ -73,6 +56,7 @@ export const tools: Tool[] = [
     href: "/pdf-to-word",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Convert to Word",
   },
   {
     id: "word-to-pdf",
@@ -83,26 +67,7 @@ export const tools: Tool[] = [
     href: "/word-to-pdf",
     accept: ".doc,.docx",
     maxFiles: 10,
-  },
-  {
-    id: "pdf-to-excel",
-    name: "PDF to Excel",
-    description: "Convert PDF documents to editable Excel spreadsheets",
-    category: "convert",
-    icon: "table-cells",
-    href: "/pdf-to-excel",
-    accept: ".pdf",
-    maxFiles: 1,
-  },
-  {
-    id: "excel-to-pdf",
-    name: "Excel to PDF",
-    description: "Convert Excel spreadsheets to PDF format",
-    category: "convert",
-    icon: "table-cells",
-    href: "/excel-to-pdf",
-    accept: ".xls,.xlsx",
-    maxFiles: 10,
+    actionLabel: "Convert to PDF",
   },
   {
     id: "pdf-to-ppt",
@@ -113,6 +78,7 @@ export const tools: Tool[] = [
     href: "/pdf-to-ppt",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Convert to PowerPoint",
   },
   {
     id: "ppt-to-pdf",
@@ -123,6 +89,7 @@ export const tools: Tool[] = [
     href: "/ppt-to-pdf",
     accept: ".ppt,.pptx",
     maxFiles: 10,
+    actionLabel: "Convert to PDF",
   },
   {
     id: "pdf-to-jpg",
@@ -133,6 +100,8 @@ export const tools: Tool[] = [
     href: "/pdf-to-jpg",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Convert to JPG",
+    hasOptions: true,
   },
   {
     id: "pdf-to-png",
@@ -143,6 +112,8 @@ export const tools: Tool[] = [
     href: "/pdf-to-png",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Convert to PNG",
+    hasOptions: true,
   },
   {
     id: "images-to-pdf",
@@ -153,6 +124,8 @@ export const tools: Tool[] = [
     href: "/images-to-pdf",
     accept: ".jpg,.jpeg,.png,.webp",
     maxFiles: 20,
+    actionLabel: "Create PDF",
+    hasOptions: true,
   },
   {
     id: "merge-pdf",
@@ -163,6 +136,7 @@ export const tools: Tool[] = [
     href: "/merge-pdf",
     accept: ".pdf",
     maxFiles: 20,
+    actionLabel: "Merge files",
   },
   {
     id: "split-pdf",
@@ -173,6 +147,8 @@ export const tools: Tool[] = [
     href: "/split-pdf",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Split PDF",
+    hasOptions: true,
   },
   {
     id: "extract-pages",
@@ -183,6 +159,8 @@ export const tools: Tool[] = [
     href: "/extract-pages",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Extract pages",
+    hasOptions: true,
   },
   {
     id: "reorder-pages",
@@ -193,6 +171,8 @@ export const tools: Tool[] = [
     href: "/reorder-pages",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Reorder pages",
+    hasOptions: true,
   },
   {
     id: "duplicate-pages",
@@ -203,6 +183,8 @@ export const tools: Tool[] = [
     href: "/duplicate-pages",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Duplicate pages",
+    hasOptions: true,
   },
   {
     id: "rotate-pdf",
@@ -213,51 +195,48 @@ export const tools: Tool[] = [
     href: "/rotate-pdf",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Rotate pages",
+    hasOptions: true,
   },
   {
     id: "delete-pages",
     name: "Delete Pages",
     description: "Remove specific pages from a PDF document",
-    category: "edit",
+    category: "organize",
     icon: "trash",
     href: "/delete-pages",
     accept: ".pdf",
     maxFiles: 1,
+    actionLabel: "Delete pages",
+    hasOptions: true,
   },
   {
     id: "compress-pdf",
     name: "Compress PDF",
-    description: "Optimize PDF files by removing metadata and applying compression settings",
+    description: "Reduce PDF file size while preserving useful quality",
     category: "optimize",
     icon: "arrow-down",
     href: "/compress-pdf",
     accept: ".pdf",
     maxFiles: 10,
+    actionLabel: "Compress PDF",
+    hasOptions: true,
   },
   {
     id: "ocr-pdf",
     name: "OCR PDF",
-    description: "Extract embedded text layers from PDF documents",
-    category: "ocr",
+    description: "Extract text from scanned PDF documents",
+    category: "optimize",
     icon: "document-text",
     href: "/ocr-pdf",
     accept: ".pdf",
     maxFiles: 1,
-  },
-  {
-    id: "protect-pdf",
-    name: "Protect PDF",
-    description: "Add password protection to your PDF files",
-    category: "share",
-    icon: "lock-closed",
-    href: "/protect-pdf",
-    accept: ".pdf",
-    maxFiles: 1,
+    actionLabel: "Extract text",
   },
 ];
 
 export const popularTools = tools.filter((tool) =>
-  ["images-to-pdf", "pdf-to-word", "merge-pdf", "compress-pdf", "pdf-to-jpg", "ocr-pdf", "word-to-pdf", "excel-to-pdf", "ppt-to-pdf"].includes(tool.id)
+  ["images-to-pdf", "pdf-to-word", "merge-pdf", "compress-pdf", "pdf-to-jpg", "ocr-pdf", "word-to-pdf", "ppt-to-pdf"].includes(tool.id)
 );
 
 export function getToolsByCategory(category: ToolCategory): Tool[] {

@@ -1,43 +1,90 @@
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  AlignmentType,
+  ImageRun,
+  PageOrientation,
+} from "docx";
 import type { Converter, ConverterInput, ConverterResult } from "../types";
+import { logger } from "../../logger";
+import {
+  getPdfPageSize,
+  twipsFromPts,
+  docxImageSizeFromPdfPts,
+} from "../page-dims";
+import { renderPageToImage } from "../render";
+import {
+  extractTextItems,
+  analyzePage,
+  selectPageMode,
+  isHeadingLine,
+  getHeadingSize,
+} from "../page-analysis";
+import type { PageAnalysis } from "../content-analysis";
 
-async function extractTextFromPdf(
-  pdfBytes: Uint8Array
-): Promise<Array<{ pageNumber: number; lines: string[] }>> {
-  const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
-  const pages: Array<{ pageNumber: number; lines: string[] }> = [];
+// ─── Build DOCX children from analysis ────────────────────────
 
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const lines: string[] = [];
-    let currentY: number | null = null;
-    let currentLine = "";
+function buildTextContent(analysis: PageAnalysis): Paragraph[] {
+  const paragraphs: Paragraph[] = [];
 
-    for (const item of content.items) {
-      if ("str" in item) {
-        const y = item.transform[5];
-        if (currentY !== null && Math.abs(y - currentY) > 2) {
-          if (currentLine.trim()) lines.push(currentLine.trim());
-          currentLine = "";
-        }
-        if (item.str && currentLine && !currentLine.endsWith(" ") && !item.str.startsWith(" ")) {
-          currentLine += " ";
-        }
-        currentLine += item.str;
-        currentY = y;
-      }
-    }
-    if (currentLine.trim()) lines.push(currentLine.trim());
-
-    pages.push({ pageNumber: i, lines });
+  const allLines: PageAnalysis["lines"][0][] = [];
+  for (const col of analysis.columns) {
+    allLines.push(...col.lines);
   }
 
-  return pages;
+  for (const line of allLines) {
+    if (!line.text.trim()) continue;
+
+    const heading = isHeadingLine(line.text);
+    const fontSize = heading ? getHeadingSize(line.text) : 22;
+
+    paragraphs.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: line.text,
+            size: fontSize,
+            bold: heading,
+          }),
+        ],
+        spacing: {
+          before: heading ? 360 : 60,
+          after: heading ? 200 : 40,
+          line: 276,
+        },
+      })
+    );
+  }
+
+  return paragraphs;
 }
+
+function buildImageContent(
+  pngBuffer: Buffer,
+  widthPt: number,
+  heightPt: number
+): Paragraph[] {
+  const imgSize = docxImageSizeFromPdfPts(widthPt, heightPt);
+
+  return [
+    new Paragraph({
+      children: [
+        new ImageRun({
+          data: pngBuffer,
+          transformation: imgSize,
+          type: "png",
+        }),
+      ],
+    }),
+  ];
+}
+
+// ─── Main converter ───────────────────────────────────────────
 
 const pdfToDocxConverter: Converter = {
   id: "pdf-to-docx",
@@ -48,71 +95,136 @@ const pdfToDocxConverter: Converter = {
     if (!file) {
       throw new Error("No file provided");
     }
-    const pdfBytes = await readFile(join(input.jobDir, file.storedName));
 
-    const pages = await extractTextFromPdf(new Uint8Array(pdfBytes));
+    logger.info("pdf_to_docx_start", {
+      event: "pdf_to_docx",
+      inputFile: file.originalName,
+    });
 
-    const paragraphs: Paragraph[] = [];
+    const rawBytes = await readFile(join(input.jobDir, file.storedName));
+    const pdfBytes = new Uint8Array(rawBytes);
 
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: file.originalName.replace(/\.pdf$/i, ""),
-            bold: true,
-            size: 32,
-          }),
-        ],
-        heading: HeadingLevel.TITLE,
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 400 },
-      })
-    );
+    const pdfDoc = await pdfjsLib.getDocument({
+      data: pdfBytes,
+      isOffscreenCanvasSupported: false,
+      useSystemFonts: true,
+    }).promise;
+    const numPages = pdfDoc.numPages;
 
-    for (let pi = 0; pi < pages.length; pi++) {
-      const page = pages[pi];
+    const sections: Array<{
+      properties: Record<string, unknown>;
+      children: Paragraph[];
+    }> = [];
+
+    let textModeCount = 0;
+    let imageModeCount = 0;
+
+    for (let pi = 0; pi < numPages; pi++) {
       input.onProgress?.({
-        percent: Math.round(((pi + 1) / pages.length) * 90),
+        percent: Math.round(((pi + 1) / numPages) * 90),
         stage: "processing",
         current: pi + 1,
-        total: pages.length,
-        message: `Converting page ${page.pageNumber} to DOCX`,
+        total: numPages,
+        message: `Converting page ${pi + 1} of ${numPages} to DOCX`,
       });
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: `--- Page ${page.pageNumber} ---`,
-              italics: true,
-              size: 18,
-              color: "888888",
+
+      const pageDim = await getPdfPageSize(pdfDoc, pi);
+      const page = await pdfDoc.getPage(pi + 1);
+      const textContent = await page.getTextContent();
+      const textItems = extractTextItems(textContent);
+
+      const analysis = analyzePage(textItems, pageDim.widthPt, pageDim.heightPt);
+      const mode = selectPageMode(analysis);
+
+      let sectionChildren: Paragraph[];
+
+      if (mode === "text") {
+        sectionChildren = buildTextContent(analysis);
+        textModeCount++;
+      } else {
+        try {
+          const rendered = await renderPageToImage(pdfDoc, pi);
+          sectionChildren = buildImageContent(
+            rendered.pngBuffer,
+            rendered.widthPt,
+            rendered.heightPt
+          );
+          imageModeCount++;
+        } catch (err) {
+          logger.warn("pdf_to_docx_render_fallback", {
+            event: "pdf_to_docx",
+            page: pi + 1,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          sectionChildren = [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `[Page ${pi + 1} — content could not be rendered]`,
+                  italics: true,
+                  color: "999999",
+                }),
+              ],
+              alignment: AlignmentType.CENTER,
             }),
-          ],
-          spacing: { before: 200, after: 100 },
-          alignment: AlignmentType.CENTER,
-        })
-      );
+          ];
+        }
+      }
 
-      for (const line of page.lines) {
-        const isTitle = line.length < 80 && /^[A-Z]/.test(line) && !line.includes(".");
+      sections.push({
+        properties: {
+          page: {
+            size: {
+              // The docx library swaps width/height in OOXML when orientation=LANDSCAPE:
+              //   w:w = heightTwips, w:h = widthTwips
+              // To get correct physical page (w:w=longer, w:h=shorter for landscape):
+              //   pass shorter dim as width, longer dim as height.
+              // For portrait: pass normally (no library swap).
+              width: pageDim.isLandscape
+                ? twipsFromPts(pageDim.heightPt)
+                : twipsFromPts(pageDim.widthPt),
+              height: pageDim.isLandscape
+                ? twipsFromPts(pageDim.widthPt)
+                : twipsFromPts(pageDim.heightPt),
+              orientation: pageDim.isLandscape
+                ? PageOrientation.LANDSCAPE
+                : PageOrientation.PORTRAIT,
+            },
+            margin: {
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+            },
+          },
+        },
+        children: sectionChildren,
+      });
+    }
 
-        paragraphs.push(
+    if (sections.length === 0) {
+      sections.push({
+        properties: {},
+        children: [
           new Paragraph({
             children: [
               new TextRun({
-                text: line,
-                size: isTitle ? 28 : 22,
-                bold: isTitle,
+                text: "(No extractable content found in this PDF)",
+                italics: true,
+                color: "999999",
               }),
             ],
-            spacing: { after: isTitle ? 200 : 80 },
-          })
-        );
-      }
+            alignment: AlignmentType.CENTER,
+          }),
+        ],
+      });
     }
 
     const doc = new Document({
-      sections: [{ children: paragraphs }],
+      sections: sections.map((s) => ({
+        properties: s.properties,
+        children: s.children,
+      })),
     });
 
     const buffer = await Packer.toBuffer(doc);
@@ -120,6 +232,19 @@ const pdfToDocxConverter: Converter = {
     const outputFileName = `${baseName}.docx`;
     const outputPath = join(input.jobDir, outputFileName);
     await writeFile(outputPath, buffer);
+
+    const outputSize = buffer.length;
+
+    logger.info("pdf_to_docx_complete", {
+      event: "pdf_to_docx",
+      inputSize: pdfBytes.length,
+      outputSize,
+      pages: numPages,
+      textModePages: textModeCount,
+      imageModePages: imageModeCount,
+      firstPageWidthPt: (await getPdfPageSize(pdfDoc, 0)).widthPt,
+      firstPageHeightPt: (await getPdfPageSize(pdfDoc, 0)).heightPt,
+    });
 
     return {
       outputFileName,

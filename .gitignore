@@ -52,10 +52,19 @@ server-err.log
 # playwright mcp local state
 .playwright-mcp/
 
+# browser verification screenshots (Phase screenshots, etc.)
+phase*-*.png
+*.playwright-screenshot.png
+
 # local test files (personal uploads / generated in root)
 /*.pptx
 /*.docx
 /*.xlsx
+/*.pdf
+
+# test output directories
+test-output/
+test-results/
 
 # local dev scripts (not part of test suite)
 scripts/

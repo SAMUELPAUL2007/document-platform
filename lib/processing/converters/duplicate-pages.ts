@@ -6,7 +6,7 @@ import { parsePageSelection } from "../page-utils";
 
 function parseCount(value?: string): number {
   const num = parseInt(value || "2", 10);
-  if (isNaN(num) || num < 1 || num > 10) return 2;
+  if (isNaN(num) || num < 1 || num > 5) return 2;
   return num;
 }
 
@@ -23,27 +23,30 @@ const duplicatePagesConverter: Converter = {
     const srcDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
     const totalPages = srcDoc.getPageCount();
 
-    const pagesToDuplicate = parsePageSelection(input.options?.pages, totalPages);
+    const selectedIndices = parsePageSelection(input.options?.pages, totalPages);
     const count = parseCount(input.options?.count);
 
+    if (selectedIndices.length === 0) {
+      throw new Error("No pages selected. Please select at least one page.");
+    }
+
     const newPdf = await PDFDocument.create();
+    const outputPageCount = selectedIndices.length * count;
 
-    for (let i = 0; i < totalPages; i++) {
-      input.onProgress?.({
-        percent: Math.round(((i + 1) / totalPages) * 90),
-        stage: "processing",
-        current: i + 1,
-        total: totalPages,
-        message: `Processing page ${i + 1} of ${totalPages}`,
-      });
-      const copiedPages = await newPdf.copyPages(srcDoc, [i]);
-      newPdf.addPage(copiedPages[0]);
+    let processed = 0;
+    for (const pageIndex of selectedIndices) {
+      for (let c = 0; c < count; c++) {
+        input.onProgress?.({
+          percent: Math.round(((processed + 1) / outputPageCount) * 90),
+          stage: "processing",
+          current: processed + 1,
+          total: outputPageCount,
+          message: `Copying page ${pageIndex + 1} (${c + 1}/${count})`,
+        });
 
-      if (pagesToDuplicate.includes(i)) {
-        for (let c = 1; c < count; c++) {
-          const dupPages = await newPdf.copyPages(srcDoc, [i]);
-          newPdf.addPage(dupPages[0]);
-        }
+        const [copiedPage] = await newPdf.copyPages(srcDoc, [pageIndex]);
+        newPdf.addPage(copiedPage);
+        processed++;
       }
     }
 

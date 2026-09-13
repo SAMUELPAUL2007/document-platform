@@ -37,10 +37,8 @@ const NORMAL_TOOLS = new Set([
   "pdf-to-jpg",
   "pdf-to-png",
   "pdf-to-word",
-  "pdf-to-excel",
   "pdf-to-ppt",
   "word-to-pdf",
-  "excel-to-pdf",
   "ppt-to-pdf",
 ]);
 

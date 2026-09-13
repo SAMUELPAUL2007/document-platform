@@ -26,7 +26,7 @@ export default function Hero() {
           </h1>
 
           <p className="mt-5 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Convert, edit, merge, compress, and share your documents.
+            Convert, merge, compress, and protect your documents.
             Fast, secure, and completely free — right in your browser.
           </p>
         </div>

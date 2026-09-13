@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import MonetagProvider from "@/components/ads/MonetagProvider";
 import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
 
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
     template: "%s | Docvanta",
   },
   description:
-    "Convert, edit, merge, compress, OCR, and share your PDF documents for free. No signup required. Fast, secure, and works right in your browser.",
+    "Convert, merge, compress, OCR, and protect your PDF documents for free. No signup required. Fast, secure, and works right in your browser.",
   keywords: [
     "PDF tools",
     "document converter",
@@ -53,7 +54,8 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col overflow-x-hidden">
+        <MonetagProvider />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:outline-none"

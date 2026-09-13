@@ -160,8 +160,8 @@ describe("addActivityEntry", () => {
   it("stores failed status", async () => {
     const { addActivityEntry, getRecentActivity } = await loadHistory();
     addActivityEntry({
-      toolId: "protect-pdf",
-      toolName: "Protect PDF",
+      toolId: "ocr-pdf",
+      toolName: "OCR PDF",
       inputFileName: "secret.pdf",
       status: "failed",
     });

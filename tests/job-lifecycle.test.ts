@@ -186,4 +186,19 @@ describe("Job Lifecycle", () => {
       expect(status?.duration).toBeUndefined();
     });
   });
+
+  describe("HMR state preservation", () => {
+    it("jobs Map survives globalThis reassignment", async () => {
+      const { processUpload } = await import("../lib/processing/job-manager");
+      const { job } = await processUpload("split-pdf", makeFormDataWithFile());
+
+      const g = globalThis as unknown as { __docvanta_jobs?: Map<string, unknown> };
+      expect(g.__docvanta_jobs).toBeDefined();
+      expect(g.__docvanta_jobs!.has(job.id)).toBe(true);
+
+      const status = await getJobStatus(job.id);
+      expect(status).toBeDefined();
+      expect(status?.id).toBe(job.id);
+    });
+  });
 });

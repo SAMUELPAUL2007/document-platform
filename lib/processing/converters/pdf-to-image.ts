@@ -1,34 +1,15 @@
 import { readFile, writeFile, unlink } from "fs/promises";
 import { join } from "path";
-import { PDFDocument } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import { createCanvas } from "@napi-rs/canvas";
 import type { Converter, ConverterInput, ConverterResult } from "../types";
 import { parsePageSelection } from "../page-utils";
+import { renderPageToImage } from "../render";
 
 function parseScale(value: string | undefined): number {
   if (!value) return 2;
   const num = parseFloat(value);
   if (isNaN(num) || num < 0.5 || num > 4) return 2;
   return num;
-}
-
-async function renderPageToImage(
-  pdfBytes: Uint8Array,
-  pageIndex: number,
-  scale: number
-): Promise<{ buffer: Buffer; width: number; height: number }> {
-  const pdf = await pdfjsLib.getDocument({ data: pdfBytes, isOffscreenCanvasSupported: false, useSystemFonts: true }).promise;
-  const page = await pdf.getPage(pageIndex + 1);
-  const viewport = page.getViewport({ scale });
-
-  const canvas = createCanvas(viewport.width, viewport.height);
-  const ctx = canvas.getContext("2d");
-
-  await page.render({ canvasContext: ctx as unknown as CanvasRenderingContext2D, viewport, canvas: canvas as unknown as HTMLCanvasElement }).promise;
-
-  const buffer = Buffer.from(canvas.toBuffer("image/png"));
-  return { buffer, width: viewport.width, height: viewport.height };
 }
 
 async function convertPdfToImages(
@@ -39,11 +20,16 @@ async function convertPdfToImages(
   if (!file) {
     throw new Error("No file provided");
   }
-  const pdfBytes = await readFile(join(input.jobDir, file.storedName));
+  const rawBytes = await readFile(join(input.jobDir, file.storedName));
+  const pdfBytes = new Uint8Array(rawBytes);
   const scale = parseScale(input.options?.scale);
 
-  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
-  const totalPages = pdfDoc.getPageCount();
+  const pdfDoc = await pdfjsLib.getDocument({
+    data: pdfBytes,
+    isOffscreenCanvasSupported: false,
+    useSystemFonts: true,
+  }).promise;
+  const totalPages = pdfDoc.numPages;
   const selectedPages = parsePageSelection(input.options?.pages, totalPages);
   if (input.options?.pages && selectedPages.length === 0) {
     throw new Error("No valid pages found in the specified range. Please check the page numbers and try again.");
@@ -61,11 +47,7 @@ async function convertPdfToImages(
       total: selectedPages.length,
       message: `Rendering page ${pageIndex + 1} of ${totalPages}`,
     });
-    const { buffer } = await renderPageToImage(
-      new Uint8Array(pdfBytes),
-      pageIndex,
-      scale
-    );
+    const { pngBuffer } = await renderPageToImage(pdfDoc, pageIndex, scale);
 
     const pageNum = String(pageIndex + 1).padStart(3, "0");
     const ext = format === "jpeg" ? "jpg" : "png";
@@ -74,10 +56,10 @@ async function convertPdfToImages(
 
     if (format === "jpeg") {
       const sharp = (await import("sharp")).default;
-      const jpegBuffer = await sharp(buffer).jpeg({ quality: 92 }).toBuffer();
+      const jpegBuffer = await sharp(pngBuffer).jpeg({ quality: 92 }).toBuffer();
       await writeFile(outputPath, jpegBuffer);
     } else {
-      await writeFile(outputPath, buffer);
+      await writeFile(outputPath, pngBuffer);
     }
 
     outputFiles.push(outputFileName);

@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { writeFile, readFile, mkdir, rm } from "fs/promises";
 import { join } from "path";
-import { PDFDocument } from "pdf-lib";
-import * as XLSX from "xlsx";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import PptxGenJS from "pptxgenjs";
 import { Document, Packer, Paragraph, TextRun } from "docx";
+import JSZip from "jszip";
 import docxToPdfConverter from "../lib/processing/converters/docx-to-pdf";
-import xlsxToPdfConverter from "../lib/processing/converters/xlsx-to-pdf";
 import pptxToPdfConverter from "../lib/processing/converters/pptx-to-pdf";
 import pdfToDocxConverter from "../lib/processing/converters/pdf-to-docx";
-import pdfToXlsxConverter from "../lib/processing/converters/pdf-to-xlsx";
 import pdfToPptxConverter from "../lib/processing/converters/pdf-to-pptx";
+import { pdfToJpgConverter, pdfToPngConverter } from "../lib/processing/converters/pdf-to-image";
 import { findLibreOffice } from "../lib/processing/converters/libreoffice";
+import { ptsToPx, docxImageSizeFromPdfPts, twipsFromPts, emuFromPts } from "../lib/processing/page-dims";
 import type { ConverterInput } from "../lib/processing/types";
 
 const TEST_DIR = join(process.cwd(), ".tmp", "test-office-converters");
@@ -68,20 +68,6 @@ async function createTestDocx(
 
   const buffer = await Packer.toBuffer(doc);
   const filePath = join(TEST_DIR, `test-${Date.now()}.docx`);
-  await writeFile(filePath, buffer);
-  return filePath;
-}
-
-async function createTestXlsx(): Promise<string> {
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([
-    ["Name", "Age", "City"],
-    ["Alice", "30", "New York"],
-    ["Bob", "25", "London"],
-  ]);
-  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-  const filePath = join(TEST_DIR, `test-${Date.now()}.xlsx`);
   await writeFile(filePath, buffer);
   return filePath;
 }
@@ -231,28 +217,6 @@ describe("DOCX to PDF converter", () => {
   });
 });
 
-describe("XLSX to PDF converter", () => {
-  it("converts an XLSX file to PDF", async () => {
-    await createTestXlsx();
-    const files = await import("fs/promises").then((f) => f.readdir(TEST_DIR));
-    const xlsxFile = files.find((f) => f.endsWith(".xlsx"));
-    expect(xlsxFile).toBeDefined();
-
-    const result = await xlsxToPdfConverter.convert(
-      makeInput(xlsxFile!, xlsxFile!, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    );
-
-    expect(result.outputFileName).toMatch(/\.pdf$/);
-    expect(result.outputMimeType).toBe("application/pdf");
-
-    const pdfBuffer = await readFile(result.outputPath);
-    expect(pdfBuffer.length).toBeGreaterThan(0);
-
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
-    expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
-  });
-});
-
 describe("PPTX to PDF converter", () => {
   it("converts a simple PPTX file to PDF", async () => {
     if (!libreOfficeAvailable) {
@@ -388,41 +352,139 @@ describe("PDF to DOCX converter", () => {
     const docxBuffer = await readFile(result.outputPath);
     expect(docxBuffer.length).toBeGreaterThan(0);
   });
-});
 
-describe("PDF to XLSX converter", () => {
-  it("converts a PDF to XLSX", async () => {
-    const pdfPath = await createTestPdf();
+  it("preserves text content in editable form for text-heavy PDFs", async () => {
+    const text = "Introduction\nThis is a detailed paragraph about the topic.\nConclusion\nSummary of findings.";
+    const pdfPath = await createTestPdf(text, 1);
     const storedName = pdfPath.split(/[\\/]/).pop()!;
 
-    const result = await pdfToXlsxConverter.convert(
-      makeInput(storedName, "test.pdf", "application/pdf")
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "text-heavy.pdf", "application/pdf")
     );
 
-    expect(result.outputFileName).toMatch(/\.xlsx$/);
-    expect(result.outputMimeType).toBe(
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-
-    const xlsxBuffer = await readFile(result.outputPath);
-    expect(xlsxBuffer.length).toBeGreaterThan(0);
-
-    const wb = XLSX.read(xlsxBuffer, { type: "buffer" });
-    expect(wb.SheetNames.length).toBeGreaterThanOrEqual(1);
+    const docxBuffer = await readFile(result.outputPath);
+    expect(docxBuffer.length).toBeGreaterThan(1000);
   });
 
-  it("converts a multi-page PDF to XLSX with multiple sheets", async () => {
-    const pdfPath = await createTestPdf("Content page 1", 3);
-    const storedName = pdfPath.split(/[\\/]/).pop()!;
+  it("renders image-only PDF pages as embedded images in DOCX", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595.28, 841.89]);
 
-    const result = await pdfToXlsxConverter.convert(
-      makeInput(storedName, "multipage.pdf", "application/pdf")
+    page.drawRectangle({
+      x: 50,
+      y: 400,
+      width: 200,
+      height: 100,
+      color: rgb(0.8, 0.2, 0.2),
+    });
+    page.drawCircle({
+      x: 400,
+      y: 300,
+      size: 80,
+      color: rgb(0.2, 0.4, 0.8),
+    });
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `image-only-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "image-only.pdf", "application/pdf")
     );
 
-    expect(result.outputFileName).toMatch(/\.xlsx$/);
-    const xlsxBuffer = await readFile(result.outputPath);
-    const wb = XLSX.read(xlsxBuffer, { type: "buffer" });
-    expect(wb.SheetNames.length).toBe(3);
+    const docxBuffer = await readFile(result.outputPath);
+    expect(docxBuffer.length).toBeGreaterThan(5000);
+    expect(result.outputFileName).toMatch(/\.docx$/);
+  });
+
+  it("produces DOCX with content for each page in multi-page PDF", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont("Helvetica");
+
+    for (let i = 0; i < 5; i++) {
+      const page = pdfDoc.addPage([595.28, 841.89]);
+      page.drawText(`Page ${i + 1} unique content here`, {
+        x: 50,
+        y: 700,
+        size: 14,
+        font,
+      });
+      page.drawRectangle({
+        x: 50,
+        y: 400 + i * 20,
+        width: 100 + i * 30,
+        height: 50,
+        color: rgb(0.1 * i, 0.2, 0.8 - 0.1 * i),
+      });
+    }
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `multipage-mixed-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "multipage-mixed.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    expect(docxBuffer.length).toBeGreaterThan(5000);
+    expect(result.outputFileName).toMatch(/\.docx$/);
+  });
+
+  it("DOCX output size scales with page count", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont("Helvetica");
+
+    for (let i = 0; i < 10; i++) {
+      const page = pdfDoc.addPage([595.28, 841.89]);
+      page.drawText(`Page ${i + 1} has unique text content for testing`, {
+        x: 50,
+        y: 700,
+        size: 12,
+        font,
+      });
+    }
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `scale-test-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "scale-test.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    expect(docxBuffer.length).toBeGreaterThan(10000);
+  });
+
+  it("does not produce DOCX with only page markers when source has visual content", async () => {
+    const pdfDoc = await PDFDocument.create();
+
+    for (let i = 0; i < 3; i++) {
+      const page = pdfDoc.addPage([595.28, 841.89]);
+      page.drawRectangle({
+        x: 50 + i * 50,
+        y: 200,
+        width: 200,
+        height: 400,
+        color: rgb(0.2 + i * 0.2, 0.3, 0.7),
+      });
+    }
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `visual-only-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "visual-only.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    expect(docxBuffer.length).toBeGreaterThan(3000);
   });
 });
 
@@ -455,6 +517,316 @@ describe("PDF to PPTX converter", () => {
     expect(result.outputFileName).toMatch(/\.pptx$/);
     const pptxBuffer = await readFile(result.outputPath);
     expect(pptxBuffer.length).toBeGreaterThan(0);
+  });
+
+  it("preserves landscape page dimensions in PPTX slides", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    pdfDoc.addPage([841.89, 595.28]);
+    const page = pdfDoc.getPage(0);
+    page.drawText("Landscape content", { x: 50, y: 400, size: 14, font });
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `landscape-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToPptxConverter.convert(
+      makeInput(storedName, "landscape.pdf", "application/pdf")
+    );
+
+    const pptxBuffer = await readFile(result.outputPath);
+    expect(pptxBuffer.length).toBeGreaterThan(5000);
+  });
+});
+
+describe("PDF to JPG/PNG converter", () => {
+  it("converts a single-page PDF to JPG", async () => {
+    const pdfPath = await createTestPdf("Image test content");
+    const storedName = pdfPath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToJpgConverter.convert(
+      makeInput(storedName, "test.pdf", "application/pdf")
+    );
+
+    expect(result.outputFileName).toMatch(/\.jpg$/);
+    expect(result.outputMimeType).toBe("image/jpeg");
+    const imgBuffer = await readFile(result.outputPath);
+    expect(imgBuffer.length).toBeGreaterThan(1000);
+  });
+
+  it("converts a single-page PDF to PNG", async () => {
+    const pdfPath = await createTestPdf("PNG test content");
+    const storedName = pdfPath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToPngConverter.convert(
+      makeInput(storedName, "test.pdf", "application/pdf")
+    );
+
+    expect(result.outputFileName).toMatch(/\.png$/);
+    expect(result.outputMimeType).toBe("image/png");
+    const imgBuffer = await readFile(result.outputPath);
+    expect(imgBuffer.length).toBeGreaterThan(1000);
+  });
+
+  it("converts multi-page PDF to zipped images", async () => {
+    const pdfPath = await createTestPdf("Multi-page content", 3);
+    const storedName = pdfPath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToPngConverter.convert(
+      makeInput(storedName, "multipage.pdf", "application/pdf")
+    );
+
+    expect(result.outputFileName).toMatch(/\.zip$/);
+    expect(result.outputMimeType).toBe("application/zip");
+    const zipBuffer = await readFile(result.outputPath);
+    expect(zipBuffer.length).toBeGreaterThan(3000);
+  });
+});
+
+describe("PDF to DOCX quality - page dimensions", () => {
+  it("preserves landscape page dimensions in DOCX sections", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    pdfDoc.addPage([841.89, 595.28]);
+    const page = pdfDoc.getPage(0);
+    page.drawText("Landscape document content for testing", {
+      x: 50, y: 400, size: 14, font,
+    });
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `landscape-docx-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "landscape.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    expect(docxBuffer.length).toBeGreaterThan(3000);
+    expect(result.outputFileName).toMatch(/\.docx$/);
+  });
+
+  it("handles mixed text and visual pages correctly", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const page1 = pdfDoc.addPage([595.28, 841.89]);
+    page1.drawText("Text-heavy page with content", { x: 50, y: 700, size: 16, font: boldFont });
+    page1.drawText("This is a paragraph of body text that should be extracted as editable content.", { x: 50, y: 660, size: 12, font });
+    page1.drawText("More text follows on this page for testing purposes.", { x: 50, y: 630, size: 12, font });
+
+    const page2 = pdfDoc.addPage([595.28, 841.89]);
+    page2.drawRectangle({ x: 50, y: 200, width: 500, height: 400, color: rgb(0.3, 0.5, 0.8) });
+    page2.drawCircle({ x: 300, y: 400, size: 100, color: rgb(0.8, 0.3, 0.3) });
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `mixed-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "mixed.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    expect(docxBuffer.length).toBeGreaterThan(5000);
+  });
+
+  it("renders visual-only pages at full page scale", async () => {
+    const pdfDoc = await PDFDocument.create();
+
+    const page = pdfDoc.addPage([595.28, 841.89]);
+    page.drawRectangle({ x: 50, y: 100, width: 500, height: 600, color: rgb(0.2, 0.4, 0.8) });
+    page.drawCircle({ x: 300, y: 400, size: 150, color: rgb(0.9, 0.2, 0.2) });
+    page.drawEllipse({ x: 200, y: 300, xScale: 100, yScale: 50, color: rgb(0.2, 0.8, 0.3) });
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `visual-fullscale-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "visual-fullscale.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    expect(docxBuffer.length).toBeGreaterThan(10000);
+  });
+});
+
+describe("PDF to DOCX - unit conversion chain", () => {
+  it("ptsToPx converts PDF points to CSS pixels correctly", () => {
+    // A4: 595.28 pts should be 794 px at 96 DPI
+    expect(ptsToPx(595.28)).toBeCloseTo(793.71, 0);
+    // 72 pts = 1 inch = 96 px
+    expect(ptsToPx(72)).toBe(96);
+    // 144 pts = 2 inches = 192 px
+    expect(ptsToPx(144)).toBe(192);
+  });
+
+  it("docxImageSizeFromPdfPts returns correct pixel dimensions", () => {
+    const size = docxImageSizeFromPdfPts(595.28, 841.89);
+    // A4: 595.28 pts × 96/72 = 794 px, 841.89 pts × 96/72 = 1123 px
+    expect(size.width).toBe(794);
+    expect(size.height).toBe(1123);
+  });
+
+  it("twipsFromPts converts correctly (20 twips per point)", () => {
+    // 72 pts = 1 inch = 1440 twips
+    expect(twipsFromPts(72)).toBe(1440);
+    // A4 width: 595.28 pts = 11906 twips
+    expect(twipsFromPts(595.28)).toBe(11906);
+  });
+
+  it("emuFromPts converts correctly (12700 EMU per point)", () => {
+    // 72 pts = 1 inch = 914400 EMU
+    expect(emuFromPts(72)).toBe(914400);
+  });
+
+  it("image EMU matches page EMU for same page dimensions", () => {
+    const ptsW = 595.28;
+    const ptsH = 841.89;
+    // Image: px × 9525 (docx library conversion)
+    const imgEmuW = Math.round(ptsToPx(ptsW)) * 9525;
+    const imgEmuH = Math.round(ptsToPx(ptsH)) * 9525;
+    // Page: pts × 12700 (OOXML twips × 635)
+    const pageEmuW = Math.round(twipsFromPts(ptsW)) * 635;
+    const pageEmuH = Math.round(twipsFromPts(ptsH)) * 635;
+    // Should be within 0.1% of each other
+    expect(Math.abs(imgEmuW - pageEmuW) / pageEmuW).toBeLessThan(0.001);
+    expect(Math.abs(imgEmuH - pageEmuH) / pageEmuH).toBeLessThan(0.001);
+  });
+});
+
+describe("PDF to DOCX - image fills page", () => {
+  it("visual-only page image covers >95% of DOCX section", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595.28, 841.89]);
+    page.drawRectangle({ x: 50, y: 100, width: 500, height: 600, color: rgb(0.2, 0.4, 0.8) });
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `img-fill-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "img-fill.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    const zip = await JSZip.loadAsync(docxBuffer);
+    const docXml = await zip.file("word/document.xml")!.async("string");
+
+    // Extract page dimensions (twips)
+    const pgSzMatch = docXml.match(/<w:pgSz[^>]+\/>/);
+    expect(pgSzMatch).toBeTruthy();
+    const wMatch = pgSzMatch![0].match(/w:w="(\d+)"/);
+    const hMatch = pgSzMatch![0].match(/w:h="(\d+)"/);
+    expect(wMatch).toBeTruthy();
+    expect(hMatch).toBeTruthy();
+    const pageTwipsW = parseInt(wMatch![1]);
+    const pageTwipsH = parseInt(hMatch![1]);
+
+    // Extract image extent (EMU)
+    const extentMatch = docXml.match(/wp:extent cx="(\d+)" cy="(\d+)"/);
+    expect(extentMatch).toBeTruthy();
+    const imgEmuW = parseInt(extentMatch![1]);
+    const imgEmuH = parseInt(extentMatch![2]);
+
+    // Convert page twips to EMU for comparison (twips × 635 = EMU)
+    const pageEmuW = pageTwipsW * 635;
+    const pageEmuH = pageTwipsH * 635;
+
+    // Image should cover >95% of page
+    const widthRatio = imgEmuW / pageEmuW;
+    const heightRatio = imgEmuH / pageEmuH;
+    expect(widthRatio).toBeGreaterThan(0.95);
+    expect(heightRatio).toBeGreaterThan(0.95);
+  });
+
+  it("landscape page image maintains correct aspect ratio", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([841.89, 595.28]); // landscape A4
+    page.drawRectangle({ x: 50, y: 100, width: 700, height: 400, color: rgb(0.8, 0.2, 0.2) });
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `landscape-fill-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "landscape-fill.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    const zip = await JSZip.loadAsync(docxBuffer);
+    const docXml = await zip.file("word/document.xml")!.async("string");
+
+    // Check landscape orientation is set
+    expect(docXml).toContain('w:orient="landscape"');
+
+    // Image extent should match landscape proportions
+    const extentMatch = docXml.match(/wp:extent cx="(\d+)" cy="(\d+)"/);
+    expect(extentMatch).toBeTruthy();
+    const cx = parseInt(extentMatch![1]);
+    const cy = parseInt(extentMatch![2]);
+    // Landscape: cx > cy
+    expect(cx).toBeGreaterThan(cy);
+  });
+
+  it("multi-page PDF creates correct number of DOCX sections", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    for (let i = 0; i < 5; i++) {
+      const page = pdfDoc.addPage([595.28, 841.89]);
+      page.drawText(`Page ${i + 1} content`, { x: 50, y: 400, size: 14, font });
+    }
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `multi-section-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "multi-section.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    const zip = await JSZip.loadAsync(docxBuffer);
+    const docXml = await zip.file("word/document.xml")!.async("string");
+
+    // Count w:pgSz elements — one per page section
+    const pgSzCount = (docXml.match(/<w:pgSz/g) ?? []).length;
+    expect(pgSzCount).toBe(5);
+  });
+
+  it("no empty or marker-only pages in output", async () => {
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.addPage([595.28, 841.89]);
+    page.drawText("Real content here", { x: 50, y: 400, size: 14, font });
+
+    const bytes = await pdfDoc.save();
+    const filePath = join(TEST_DIR, `no-empty-${Date.now()}.pdf`);
+    await writeFile(filePath, bytes);
+    const storedName = filePath.split(/[\\/]/).pop()!;
+
+    const result = await pdfToDocxConverter.convert(
+      makeInput(storedName, "no-empty.pdf", "application/pdf")
+    );
+
+    const docxBuffer = await readFile(result.outputPath);
+    const zip = await JSZip.loadAsync(docxBuffer);
+    const docXml = await zip.file("word/document.xml")!.async("string");
+
+    // Should not contain fallback marker text
+    expect(docXml).not.toContain("content could not be rendered");
+    expect(docXml).not.toContain("No extractable content");
   });
 });
 

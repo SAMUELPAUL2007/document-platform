@@ -4,6 +4,7 @@ import { tmpdir } from "os";
 import { convertWithLibreOffice } from "./libreoffice";
 import type { Converter, ConverterInput, ConverterResult } from "../types";
 import { logger } from "../../logger";
+import { validateLibreOfficePdf } from "../validate";
 
 const CONVERSION_TIMEOUT_MS = 120_000;
 
@@ -53,6 +54,16 @@ const docxToPdfConverter: Converter = {
       const outputFileName = `${baseName}.pdf`;
       const outputPath = join(input.jobDir, outputFileName);
       await writeFile(outputPath, pdfBuffer);
+
+      // Validate output
+      const validation = await validateLibreOfficePdf(outputPath);
+      if (!validation.valid) {
+        const errorMsg = validation.issues
+          .filter((i) => i.severity === "error")
+          .map((i) => i.message)
+          .join("; ");
+        throw new Error(`Output validation failed: ${errorMsg}`);
+      }
 
       logger.info("docx_to_pdf_complete", {
         event: "docx_to_pdf",

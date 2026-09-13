@@ -34,19 +34,38 @@ function canTransition(from: JobState, to: JobState): boolean {
   return VALID_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
-const jobs = new Map<string, Job>();
+// ─── HMR-safe global state ──────────────────────────────────
+// Attach mutable state to globalThis so it survives Turbopack/webpack HMR.
+// When a module is re-evaluated during hot reload, module-scope variables are
+// re-initialized. By reading from globalThis first, we keep the existing state.
+// This is the standard Next.js pattern for server-side singleton state.
 
-let activeJobs = 0;
-const waitingQueue: Array<() => void> = [];
+const g = globalThis as unknown as {
+  __docvanta_jobs?: Map<string, Job>;
+  __docvanta_activeJobs?: number;
+  __docvanta_waitingQueue?: Array<() => void>;
+  __docvanta_shutdownInitiated?: boolean;
+};
+
+const jobs: Map<string, Job> = g.__docvanta_jobs ?? new Map<string, Job>();
+g.__docvanta_jobs = jobs;
+
+let activeJobs = g.__docvanta_activeJobs ?? 0;
+g.__docvanta_activeJobs = activeJobs;
+
+const waitingQueue: Array<() => void> = g.__docvanta_waitingQueue ?? [];
+g.__docvanta_waitingQueue = waitingQueue;
 
 function acquireSlot(): Promise<void> {
   if (activeJobs < MAX_CONCURRENT_JOBS) {
     activeJobs++;
+    g.__docvanta_activeJobs = activeJobs;
     return Promise.resolve();
   }
   return new Promise((resolve) => {
     waitingQueue.push(() => {
       activeJobs++;
+      g.__docvanta_activeJobs = activeJobs;
       resolve();
     });
   });
@@ -54,6 +73,7 @@ function acquireSlot(): Promise<void> {
 
 function releaseSlot(): void {
   activeJobs--;
+  g.__docvanta_activeJobs = activeJobs;
   const next = waitingQueue.shift();
   if (next) next();
 }
@@ -258,7 +278,7 @@ async function runJob(jobId: string): Promise<void> {
       onProgress: (snapshot) => tracker.update(snapshot),
     };
 
-    tracker.update({ percent: 10, stage: "processing", message: "Converting" });
+    tracker.update({ percent: 1, stage: "processing", message: "Starting conversion" });
     const result = await converter.convert(input);
 
     tracker.update({ percent: 90, stage: "finalizing", message: "Saving output" });
@@ -362,11 +382,12 @@ export function recoverStuckJobs(): number {
   return recovered;
 }
 
-let shutdownInitiated = false;
+let shutdownInitiated = g.__docvanta_shutdownInitiated ?? false;
 
 function gracefulShutdown(signal: string): void {
   if (shutdownInitiated) return;
   shutdownInitiated = true;
+  g.__docvanta_shutdownInitiated = true;
 
   logger.info("shutdown", { event: signal, activeJobs: jobs.size });
 
@@ -380,7 +401,6 @@ function gracefulShutdown(signal: string): void {
     }
   }
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
   const { stopCleanupScheduler } = require("./cleanup");
   stopCleanupScheduler();
 }

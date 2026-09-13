@@ -59,7 +59,7 @@ describe("ProcessingUI", () => {
     render(
       <ProcessingUI status="processing" progress={0} onCancel={onCancel} canCancel={true} />
     );
-    const cancelBtn = screen.getByText("Cancel processing");
+    const cancelBtn = screen.getByText("Cancel");
     expect(cancelBtn).toBeTruthy();
   });
 
@@ -68,14 +68,14 @@ describe("ProcessingUI", () => {
     render(
       <ProcessingUI status="processing" progress={0} onCancel={onCancel} canCancel={false} />
     );
-    expect(screen.queryByText("Cancel processing")).toBeNull();
+    expect(screen.queryByText("Cancel", { selector: "button" })).toBeNull();
   });
 
   it("hides cancel button when onCancel is not provided", () => {
     render(
       <ProcessingUI status="processing" progress={0} canCancel={true} />
     );
-    expect(screen.queryByText("Cancel processing")).toBeNull();
+    expect(screen.queryByText("Cancel", { selector: "button" })).toBeNull();
   });
 
   it("shows custom message from snapshot", () => {

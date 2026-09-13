@@ -90,3 +90,89 @@ body {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+/* ── Tool page layout ─────────────────────────────── */
+
+.tool-page-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  min-width: 0;
+}
+
+.tool-page-main {
+  min-width: 0;
+}
+
+/* Options sidebar — mobile: stacked below main */
+.tool-page-options-panel {
+  display: block;
+  width: 100%;
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+}
+
+.tool-page-options-sticky {
+  position: static;
+}
+
+/* Ad sidebar — hidden by default (mobile/tablet) */
+.tool-page-ad-sidebar {
+  display: none;
+}
+
+.tool-page-ad-sticky {
+  position: static;
+}
+
+/* Desktop with options panel: two-column layout */
+@media (min-width: 1024px) {
+  .tool-page-layout--with-options {
+    flex-direction: row;
+    gap: 2.5rem;
+  }
+  .tool-page-layout--with-options .tool-page-main {
+    flex: 1;
+    max-width: none;
+    align-self: flex-start;
+  }
+  .tool-page-options-panel {
+    width: 20rem;
+    flex-shrink: 0;
+    border-top: none;
+    padding-top: 0;
+  }
+  .tool-page-options-sticky {
+    position: sticky;
+    top: 5rem;
+  }
+}
+
+/* Desktop with ad sidebar: two-column layout (main + ad) */
+@media (min-width: 1024px) {
+  .tool-page-layout--with-ad {
+    flex-direction: row;
+    gap: 2.5rem;
+  }
+  .tool-page-layout--with-ad .tool-page-main {
+    flex: 1;
+    max-width: none;
+    align-self: flex-start;
+  }
+  .tool-page-ad-sidebar {
+    display: block;
+    width: 180px;
+    flex-shrink: 0;
+  }
+  .tool-page-ad-sticky {
+    position: sticky;
+    top: 5rem;
+  }
+}
+
+/* Hide tall ad on smaller screens */
+@media (max-width: 1023px) {
+  .tool-page-ad-sidebar {
+    display: none !important;
+  }
+}

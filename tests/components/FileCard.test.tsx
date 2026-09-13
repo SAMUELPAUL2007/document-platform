@@ -100,6 +100,25 @@ describe("FileCard", () => {
     expect(onRemove).toHaveBeenCalledTimes(1);
   });
 
+  it("remove button has trash icon", () => {
+    const onRemove = vi.fn();
+    const file = makeFile("test.pdf");
+    const { container } = render(<FileCard file={file} status="pending" onRemove={onRemove} />);
+    const removeBtn = screen.getByRole("button", { name: /Remove test\.pdf/i });
+    const svg = removeBtn.querySelector("svg");
+    expect(svg).toBeTruthy();
+    expect(svg?.innerHTML).toContain("M14.74 9l");
+  });
+
+  it("remove button is always visible (not hover-only)", () => {
+    const onRemove = vi.fn();
+    const file = makeFile("test.pdf");
+    const { container } = render(<FileCard file={file} status="pending" onRemove={onRemove} />);
+    const removeBtn = screen.getByRole("button", { name: /Remove test\.pdf/i });
+    expect(removeBtn.className).not.toContain("opacity-0");
+    expect(removeBtn.className).not.toContain("group-hover");
+  });
+
   it("hides remove button when uploading", () => {
     const onRemove = vi.fn();
     const file = makeFile("test.pdf");

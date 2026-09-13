@@ -2,6 +2,7 @@
 
 import type { ProcessingStatus } from "@/lib/processing/types";
 import type { ProgressSnapshot } from "@/lib/progress";
+import Button from "@/components/ui/Button";
 
 export type DisplayState =
   | "idle"
@@ -171,12 +172,9 @@ export default function ProcessingUI({
 
       {canCancel && onCancel && !isCompleted && (
         <div className="mt-4 flex justify-center">
-          <button
-            onClick={onCancel}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
-          >
-            Cancel processing
-          </button>
+          <Button variant="secondary" size="sm" onClick={onCancel} aria-label="Cancel processing">
+            Cancel
+          </Button>
         </div>
       )}
     </div>

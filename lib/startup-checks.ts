@@ -1,4 +1,3 @@
-import { findQpdf } from "./processing/converters/qpdf";
 import { findLibreOffice } from "./processing/converters/libreoffice";
 import { logger } from "./logger";
 
@@ -13,13 +12,9 @@ let cachedResults: DependencyStatus[] | null = null;
 export async function checkDependencies(): Promise<DependencyStatus[]> {
   if (cachedResults) return cachedResults;
 
-  const [qpdfPath, libreOfficePath] = await Promise.all([
-    findQpdf(),
-    findLibreOffice(),
-  ]);
+  const libreOfficePath = await findLibreOffice();
 
   cachedResults = [
-    { name: "qpdf", available: qpdfPath !== null, path: qpdfPath },
     { name: "libreoffice", available: libreOfficePath !== null, path: libreOfficePath },
   ];
 
@@ -31,8 +26,7 @@ export async function checkDependencies(): Promise<DependencyStatus[]> {
   }
 
   logger.info("startup_dependencies_checked", {
-    qpdf: cachedResults[0].available,
-    libreoffice: cachedResults[1].available,
+    libreoffice: cachedResults[0].available,
   });
 
   return cachedResults;
