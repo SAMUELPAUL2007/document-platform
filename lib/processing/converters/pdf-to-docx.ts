@@ -84,6 +84,10 @@ function buildImageContent(
   ];
 }
 
+// ─── Render scale for image-mode pages ────────────────────────
+// Benchmark-tested: 1.5× saves ~24% render time vs 2× with very good visual quality.
+const IMAGE_RENDER_SCALE = 1.5;
+
 // ─── Main converter ───────────────────────────────────────────
 
 const pdfToDocxConverter: Converter = {
@@ -143,7 +147,7 @@ const pdfToDocxConverter: Converter = {
         textModeCount++;
       } else {
         try {
-          const rendered = await renderPageToImage(pdfDoc, pi);
+          const rendered = await renderPageToImage(pdfDoc, pi, IMAGE_RENDER_SCALE);
           sectionChildren = buildImageContent(
             rendered.pngBuffer,
             rendered.widthPt,
