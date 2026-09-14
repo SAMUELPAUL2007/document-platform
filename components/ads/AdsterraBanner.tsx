@@ -9,18 +9,6 @@ interface AdsterraBannerProps {
   className?: string;
 }
 
-declare global {
-  interface Window {
-    atOptions?: {
-      key: string;
-      format: string;
-      height: number;
-      width: number;
-      params: Record<string, unknown>;
-    };
-  }
-}
-
 export default function AdsterraBanner({ adKey, width, height, className = "" }: AdsterraBannerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -29,25 +17,29 @@ export default function AdsterraBanner({ adKey, width, height, className = "" }:
 
     const container = containerRef.current;
 
-    window.atOptions = {
-      key: adKey,
-      format: "iframe",
-      height,
-      width,
-      params: {},
-    };
+    // Isolate each banner's window.atOptions in its own iframe
+    // to prevent cross-banner config overwrites when multiple
+    // banners render on the same page.
+    const iframe = document.createElement("iframe");
+    iframe.width = String(width);
+    iframe.height = String(height);
+    iframe.style.width = `${width}px`;
+    iframe.style.height = `${height}px`;
+    iframe.style.border = "none";
+    iframe.style.maxWidth = "100%";
+    iframe.style.overflow = "hidden";
+    iframe.setAttribute("sandbox", "allow-scripts");
+    iframe.setAttribute("loading", "lazy");
+    iframe.setAttribute("title", "Advertisement");
 
-    const script = document.createElement("script");
-    script.src = `https://www.highrevenueformat.com/${adKey}/invoke.js`;
-    script.async = true;
-    script.onerror = () => {
-      script.remove();
-    };
-    container.appendChild(script);
+    const scriptUrl = `https://www.highrevenueformat.com/${adKey}/invoke.js`;
+    iframe.srcdoc = `<html><head></head><body style="margin:0;padding:0;overflow:hidden"><script>window.atOptions={key:"${adKey}",format:"iframe",height:${height},width:${width},params:{}};</script><script src="${scriptUrl}" async></script></body></html>`;
+
+    container.appendChild(iframe);
 
     return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
+      if (iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe);
       }
     };
   }, [adKey, width, height]);
