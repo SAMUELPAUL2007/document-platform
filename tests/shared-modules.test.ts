@@ -440,3 +440,105 @@ describe("pdfjs-dist Node compatibility (Promise.withResolvers)", () => {
     expect(viewport.height).toBeCloseTo(792, 0);
   });
 });
+
+// ─── cleanup.ts ─────────────────────────────────────────────
+
+describe("cleanup.ts - scheduler and cycle callback", () => {
+  it("executes registered callback during runCleanupCycle without dynamic require", async () => {
+    const { startCleanupScheduler, stopCleanupScheduler, runCleanupCycle } = await import("../lib/processing/cleanup");
+    let callbackCalled = false;
+
+    startCleanupScheduler(() => {
+      callbackCalled = true;
+    });
+
+    runCleanupCycle();
+    expect(callbackCalled).toBe(true);
+
+    stopCleanupScheduler();
+  });
+
+  it("handles callback errors gracefully in runCleanupCycle", async () => {
+    const { startCleanupScheduler, stopCleanupScheduler, runCleanupCycle } = await import("../lib/processing/cleanup");
+
+    startCleanupScheduler(() => {
+      throw new Error("test recovery error");
+    });
+
+    expect(() => runCleanupCycle()).not.toThrow();
+
+    stopCleanupScheduler();
+  });
+
+  it("cleans up temp directory without crashing", async () => {
+    const { cleanupTempDir } = await import("../lib/processing/cleanup");
+    const removed = await cleanupTempDir();
+    expect(typeof removed).toBe("number");
+  });
+
+  it("stopCleanupScheduler stops the timer and sets it to null", async () => {
+    const { startCleanupScheduler, stopCleanupScheduler } = await import("../lib/processing/cleanup");
+    const g = globalThis as unknown as { __docvanta_cleanupTimer?: ReturnType<typeof setInterval> | null };
+
+    startCleanupScheduler(() => {});
+    expect(g.__docvanta_cleanupTimer).not.toBeNull();
+
+    stopCleanupScheduler();
+    expect(g.__docvanta_cleanupTimer).toBeNull();
+  });
+
+  it("starting scheduler repeatedly does not create duplicate timers", async () => {
+    const { startCleanupScheduler, stopCleanupScheduler } = await import("../lib/processing/cleanup");
+    const g = globalThis as unknown as { __docvanta_cleanupTimer?: ReturnType<typeof setInterval> | null };
+
+    startCleanupScheduler(() => {});
+    const firstTimer = g.__docvanta_cleanupTimer;
+    expect(firstTimer).not.toBeNull();
+
+    startCleanupScheduler(() => {});
+    const secondTimer = g.__docvanta_cleanupTimer;
+    expect(secondTimer).toBe(firstTimer);
+
+    stopCleanupScheduler();
+  });
+
+  it("recoverStuckJobs signature works as the onCycle callback", async () => {
+    const { startCleanupScheduler, stopCleanupScheduler, runCleanupCycle } = await import("../lib/processing/cleanup");
+
+    let recovered = 0;
+    function fakeRecoverStuckJobs(): number {
+      recovered++;
+      return 1;
+    }
+
+    startCleanupScheduler(fakeRecoverStuckJobs);
+    runCleanupCycle();
+    expect(recovered).toBe(1);
+
+    stopCleanupScheduler();
+  });
+
+  it("no dynamic require in cleanup.ts source (structural guarantee)", async () => {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../lib/processing/cleanup.ts"),
+      "utf-8"
+    );
+    expect(source).not.toMatch(/require\(\s*["']\.\/job-manager["']\s*\)/);
+    expect(source).not.toMatch(/require\(\s*["']\.\/cleanup["']\s*\)/);
+  });
+
+  it("graceful shutdown path has static import of stopCleanupScheduler", async () => {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../lib/processing/job-manager.ts"),
+      "utf-8"
+    );
+    expect(source).toContain("stopCleanupScheduler");
+    expect(source).toContain('from "./cleanup"');
+    expect(source).not.toMatch(/require\(\s*["']\.\/cleanup["']\s*\)/);
+  });
+});
+

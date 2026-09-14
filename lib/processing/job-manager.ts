@@ -11,7 +11,7 @@ import {
 } from "./file-store";
 import { validateFile, getMimeTypeFromExtension } from "./validators";
 import { getConverter } from "./converters";
-import { startCleanupScheduler } from "./cleanup";
+import { startCleanupScheduler, stopCleanupScheduler } from "./cleanup";
 import { ProgressTracker } from "../progress";
 import { getToolById } from "@/lib/tools";
 import { MAX_FILE_SIZE, MAX_CONCURRENT_JOBS } from "@/lib/constants";
@@ -78,7 +78,7 @@ function releaseSlot(): void {
   if (next) next();
 }
 
-startCleanupScheduler();
+startCleanupScheduler(recoverStuckJobs);
 
 function evictStaleJobs(): void {
   if (jobs.size <= MAX_JOBS) return;
@@ -401,7 +401,6 @@ function gracefulShutdown(signal: string): void {
     }
   }
 
-  const { stopCleanupScheduler } = require("./cleanup");
   stopCleanupScheduler();
 }
 
