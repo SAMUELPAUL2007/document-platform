@@ -107,14 +107,17 @@ export async function convertWithLibreOffice(
             inputPath,
           ];
 
+      let stdout = "";
       let stderr = "";
       let killed = false;
       const startTime = Date.now();
 
-      logger.info("libreoffice_start", { event: "libreoffice_convert", outputFormat });
+      // Log the exact command for diagnostics (no document contents)
+      const cmdDisplay = [soffice, ...args].map(a => a.includes("/") || a.includes("\\") ? "[path]" : a).join(" ");
+      logger.info("libreoffice_start", { event: "libreoffice_convert", outputFormat, cmd: cmdDisplay });
 
       const proc = spawn(/* turbopackIgnore: true */ soffice, args, {
-        stdio: ["ignore", "ignore", "pipe"],
+        stdio: ["ignore", "pipe", "pipe"],
         timeout: timeoutMs,
       });
 
@@ -122,6 +125,10 @@ export async function convertWithLibreOffice(
         killed = true;
         proc.kill("SIGKILL");
       }, timeoutMs);
+
+      proc.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
 
       proc.stderr.on("data", (data: Buffer) => {
         stderr += data.toString();
@@ -140,27 +147,28 @@ export async function convertWithLibreOffice(
         });
       });
 
-      proc.on("close", async (code: number) => {
+      proc.on("close", async (code: number, signal: string | null) => {
         clearTimeout(timer);
         const duration = Date.now() - startTime;
+        const combinedOutput = (stdout + "\n" + stderr).trim();
         if (killed) {
           logger.warn("libreoffice_timeout", { event: "libreoffice_convert", duration });
           await cleanupProfile();
           resolve({
             success: false,
             error: "LibreOffice conversion timed out",
-            stderr,
+            stderr: combinedOutput,
           });
           return;
         }
         if (code !== 0) {
-          const sanitizedStderr = stderr.replace(/password|secret|token/gi, "***").slice(0, 500);
-          logger.error("libreoffice_failed", { event: "libreoffice_convert", duration, exitCode: code, stderr: sanitizedStderr });
+          const sanitizedOutput = combinedOutput.replace(/password|secret|token/gi, "***").slice(0, 500);
+          logger.error("libreoffice_failed", { event: "libreoffice_convert", duration, exitCode: code, signal, output: sanitizedOutput });
           await cleanupProfile();
           resolve({
             success: false,
-            error: `LibreOffice conversion failed (exit code ${code}): ${sanitizedStderr}`,
-            stderr,
+            error: `LibreOffice conversion failed (exit code ${code}${signal ? ", signal " + signal : ""}): ${sanitizedOutput}`,
+            stderr: combinedOutput,
           });
           return;
         }
@@ -187,7 +195,7 @@ export async function convertWithLibreOffice(
             resolve({
               success: false,
               error: "LibreOffice conversion completed but output file not found",
-              stderr,
+              stderr: combinedOutput,
             });
             return;
           }

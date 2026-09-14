@@ -21,13 +21,16 @@ FROM node:22-slim AS runtime
 
 # Install LibreOffice headless for document conversion
 # Packages for DOCX/PPTX → PDF and PDF → DOCX conversion
+# Fonts are required: without them LibreOffice cannot render text and exits with code 1
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice-core \
     libreoffice-writer \
     libreoffice-impress \
     libreoffice-draw \
-    # Clean up to reduce image size
+    fonts-liberation \
+    fonts-dejavu-core \
+    && fc-cache -f -v \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && chmod 1777 /tmp /var/tmp
