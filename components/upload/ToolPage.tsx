@@ -398,7 +398,7 @@ export default function ToolPage({ tool, options: externalOptions, optionsPanel,
           {!showOptionsPanel && (
             <aside className="tool-page-ad-sidebar" aria-label="Advertisement">
               <div className="tool-page-ad-sticky">
-                <AdSlot placement="tool-sidebar" size="160x600" />
+                <AdSlot placement="tool-sidebar" size="300x250" />
               </div>
             </aside>
           )}

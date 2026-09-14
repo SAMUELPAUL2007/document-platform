@@ -161,7 +161,7 @@ body {
   }
   .tool-page-ad-sidebar {
     display: block;
-    width: 180px;
+    width: 300px;
     flex-shrink: 0;
   }
   .tool-page-ad-sticky {
