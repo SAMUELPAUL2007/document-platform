@@ -77,8 +77,8 @@ function makeInput(storedName: string, originalName: string, size: number): Conv
   };
 }
 
-describe("PDF to DOCX - Cosmic Atlas complex regression", () => {
-  it("converts a 17-page complex visual PDF to a meaningful DOCX", async () => {
+describe("PDF to DOCX - Cosmic Atlas image-mode regression", () => {
+  it("converts a 17-page complex visual PDF to image-based DOCX", async () => {
     const pdfPath = await createComplexPdf();
     const storedName = pdfPath.split(/[\\/]/).pop()!;
     const fileStat = await stat(pdfPath);
@@ -93,25 +93,32 @@ describe("PDF to DOCX - Cosmic Atlas complex regression", () => {
     );
 
     const docxBuffer = await readFile(result.outputPath);
-
     expect(docxBuffer.length).toBeGreaterThan(5000);
 
     const zip = await JSZip.loadAsync(docxBuffer);
     const files = Object.keys(zip.files);
-
     expect(files).toContain("word/document.xml");
-    expect(files.length).toBeGreaterThan(10);
 
+    // In image-mode, every page is a PNG embedded in the DOCX.
+    // Check that PNG images exist in word/media/
+    const mediaFiles = files.filter(
+      (f) => f.startsWith("word/media/") && f.endsWith(".png")
+    );
+    expect(mediaFiles.length).toBe(17);
+
+    // Check that each image file has real PNG content (>1KB)
+    for (const mediaFile of mediaFiles) {
+      const data = await zip.file(mediaFile)!.async("nodebuffer");
+      // PNG magic bytes: 0x89 0x50 0x4E 0x47
+      expect(data[0]).toBe(0x89);
+      expect(data[1]).toBe(0x50); // P
+      expect(data[2]).toBe(0x4e); // N
+      expect(data[3]).toBe(0x47); // G
+      expect(data.length).toBeGreaterThan(1000);
+    }
+
+    // Page dimensions must be embedded in the DOCX
     const docXml = await zip.file("word/document.xml")!.async("string");
-    expect(docXml.length).toBeGreaterThan(500);
-    expect(docXml).toContain("The Cosmic Atlas");
-    expect(docXml).toContain("celestial navigation");
-
-    const chapterMatches = docXml.match(/Chapter \d+/g) || [];
-    expect(chapterMatches.length).toBe(17);
-
-    // Verify page dimensions are embedded in the DOCX
-    // A4 = 595.28pt = 7562556 EMU width, 841.89pt = 10693749 EMU height
     expect(docXml).toContain("w:pgSz");
   });
 });
@@ -195,7 +202,6 @@ async function createPortraitPdf(
 
 describe("PDF to DOCX - landscape geometry regression (P0)", () => {
   it("landscape page: w:w > w:h in OOXML w:pgSz (Cosmic Atlas dims)", async () => {
-    // Cosmic Atlas: 1376 x 768 pts = 19.11 x 10.67 inches
     const pdfPath = await createLandscapePdf(1376, 768);
     const storedName = pdfPath.split(/[\\/]/).pop()!;
     const fileStat = await stat(pdfPath);
@@ -211,15 +217,12 @@ describe("PDF to DOCX - landscape geometry regression (P0)", () => {
     const pgSz = parsePgSz(docXml);
     expect(pgSz).not.toBeNull();
     expect(pgSz!.orient).toBe("landscape");
-    // w:w must be the LONGER dimension (19.11" = ~27520 twips)
-    // w:h must be the SHORTER dimension (10.67" = ~15360 twips)
     expect(pgSz!.wTwips).toBeGreaterThan(pgSz!.hTwips);
     expect(pgSz!.wInches).toBeCloseTo(19.11, 1);
     expect(pgSz!.hInches).toBeCloseTo(10.67, 1);
   });
 
   it("portrait page: w:w < w:h in OOXML w:pgSz (letter dims)", async () => {
-    // Letter: 612 x 792 pts = 8.5 x 11 inches
     const pdfPath = await createPortraitPdf(612, 792);
     const storedName = pdfPath.split(/[\\/]/).pop()!;
     const fileStat = await stat(pdfPath);
@@ -235,15 +238,12 @@ describe("PDF to DOCX - landscape geometry regression (P0)", () => {
     const pgSz = parsePgSz(docXml);
     expect(pgSz).not.toBeNull();
     expect(pgSz!.orient).toBe("portrait");
-    // w:w must be the SHORTER dimension (8.5" = ~12240 twips)
-    // w:h must be the LONGER dimension (11" = ~15840 twips)
     expect(pgSz!.wTwips).toBeLessThan(pgSz!.hTwips);
     expect(pgSz!.wInches).toBeCloseTo(8.5, 1);
     expect(pgSz!.hInches).toBeCloseTo(11, 1);
   });
 
   it("landscape image fits landscape page without overflow", async () => {
-    // Landscape: 1376 x 768 pts
     const pdfPath = await createLandscapePdf(1376, 768);
     const storedName = pdfPath.split(/[\\/]/).pop()!;
     const fileStat = await stat(pdfPath);
@@ -256,7 +256,6 @@ describe("PDF to DOCX - landscape geometry regression (P0)", () => {
     const zip = await JSZip.loadAsync(docxBuffer);
     const docXml = await zip.file("word/document.xml")!.async("string");
 
-    // Check image wp:extent
     const extentMatch = docXml.match(/<wp:extent[^/]*\/>/);
     expect(extentMatch).not.toBeNull();
 
@@ -269,7 +268,6 @@ describe("PDF to DOCX - landscape geometry regression (P0)", () => {
     const cxInches = parseInt(cxMatch![1]) / EMU_PER_INCH;
     const cyInches = parseInt(cyMatch![1]) / EMU_PER_INCH;
 
-    // Image width > height for landscape
     expect(cxInches).toBeGreaterThan(cyInches);
     expect(cxInches).toBeCloseTo(19.11, 1);
     expect(cyInches).toBeCloseTo(10.67, 1);

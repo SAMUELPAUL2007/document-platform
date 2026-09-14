@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import { mkdir, writeFile, readFile as fsReadFile, stat, rm, realpath } from "fs/promises";
-import { join } from "path";
+import { mkdir, writeFile, readFile as fsReadFile, stat, rm } from "fs/promises";
+import { join, resolve, relative, isAbsolute } from "path";
 import type { JobFile } from "./types";
 import { TEMP_DIR } from "@/lib/constants";
 
@@ -56,16 +56,15 @@ export async function readFileFromJob(
   const dir = jobDir(jobId);
   const filePath = join(dir, storedName);
 
-  const realDir = await realpath(dir);
-  let realFile: string;
-  try {
-    realFile = await realpath(filePath);
-  } catch {
-    throw new Error("File not found");
+  const rel = relative(resolve(dir), resolve(filePath));
+  if (rel.startsWith("..") || isAbsolute(rel)) {
+    throw new Error("Path traversal detected");
   }
 
-  if (!realFile.startsWith(realDir)) {
-    throw new Error("Path traversal detected");
+  try {
+    await stat(filePath);
+  } catch {
+    throw new Error("File not found");
   }
 
   return fsReadFile(filePath);
@@ -102,10 +101,8 @@ export async function getResultBuffer(
   const filePath = join(dir, storedName);
 
   try {
-    const realDir = await realpath(dir);
-    const realFile = await realpath(filePath);
-
-    if (!realFile.startsWith(realDir)) return null;
+    const rel = relative(resolve(dir), resolve(filePath));
+    if (rel.startsWith("..") || isAbsolute(rel)) return null;
 
     await stat(filePath);
     return fsReadFile(filePath);

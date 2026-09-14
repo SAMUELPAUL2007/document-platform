@@ -20,12 +20,14 @@ RUN npm run build
 FROM node:22-slim AS runtime
 
 # Install LibreOffice headless for document conversion
-# Packages for DOCX/PPTX → PDF conversion
+# Packages for DOCX/PPTX → PDF and PDF → DOCX conversion
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice-core \
     libreoffice-writer \
     libreoffice-impress \
+    libreoffice-pdfimport \
+    libreoffice-draw \
     # Clean up to reduce image size
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

@@ -173,15 +173,28 @@ export default function ToolPage({ tool, options: externalOptions, optionsPanel,
     setState({ status: "idle", progress: 0 });
   }, []);
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback(async () => {
     if (!state.jobId) return;
     const url = getDownloadUrl(state.jobId);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = state.resultFileName || "result";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Download failed (${response.status})`);
+      }
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = state.resultFileName || "result";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Download failed";
+      setState((prev) => ({ ...prev, error: message, status: "error" }));
+    }
   }, [state.jobId, state.resultFileName]);
 
   const isProcessing = state.status === "uploading" || state.status === "processing";
