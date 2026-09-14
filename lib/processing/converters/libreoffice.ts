@@ -99,7 +99,7 @@ export async function convertWithLibreOffice(
         : [
             "--headless",
             "--norestore",
-            "--env:UserInstallation=" + profileFileUri(profileDir),
+            "-env:UserInstallation=" + profileFileUri(profileDir),
             "--convert-to",
             outputFormat,
             "--outdir",
