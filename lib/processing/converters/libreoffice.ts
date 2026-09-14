@@ -1,7 +1,7 @@
 // @turbopack-ignore
 
 import { spawn } from "child_process";
-import { access } from "fs/promises";
+import { access, mkdtemp, rm } from "fs/promises";
 import { logger } from "../../logger";
 
 const LIBREOFFICE_PATHS = [
@@ -16,8 +16,17 @@ const LIBREOFFICE_PATHS = [
 ];
 
 import { join } from "path";
+import { tmpdir } from "os";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
+
+function profileFileUri(dir: string): string {
+  const normalized = dir.replace(/\\/g, "/");
+  if (/^[a-zA-Z]:/.test(normalized)) {
+    return "file:///" + normalized;
+  }
+  return "file://" + normalized;
+}
 
 let cachedPath: string | null | undefined;
 
@@ -60,103 +69,138 @@ export async function convertWithLibreOffice(
   }
 
   return new Promise((resolve) => {
-    const args = [
-      "--headless",
-      "--norestore",
-      "--convert-to",
-      outputFormat,
-      "--outdir",
-      outputDir,
-      inputPath,
-    ];
+    let profileDir: string | null = null;
 
-    let stderr = "";
-    let killed = false;
-    const startTime = Date.now();
+    const cleanupProfile = async () => {
+      if (profileDir) {
+        try {
+          await rm(profileDir, { recursive: true, force: true });
+        } catch {
+          // Best-effort cleanup
+        }
+        profileDir = null;
+      }
+    };
 
-    logger.info("libreoffice_start", { event: "libreoffice_convert", outputFormat });
+    (async () => {
+      profileDir = await mkdtemp(join(tmpdir(), "lo-profile-"));
 
-    const proc = spawn(/* turbopackIgnore: true */ soffice, args, {
-      stdio: ["ignore", "ignore", "pipe"],
-      timeout: timeoutMs,
-    });
+       // Build LibreOffice arguments. On Windows we cannot use the --env:UserInstallation flag because the file:// URI format is not accepted.
+      const args: string[] = process.platform === "win32"
+        ? [
+            "--headless",
+            "--norestore",
+            "--convert-to",
+            outputFormat,
+            "--outdir",
+            outputDir,
+            inputPath,
+          ]
+        : [
+            "--headless",
+            "--norestore",
+            "--env:UserInstallation=" + profileFileUri(profileDir),
+            "--convert-to",
+            outputFormat,
+            "--outdir",
+            outputDir,
+            inputPath,
+          ];
 
-    const timer = setTimeout(() => {
-      killed = true;
-      proc.kill("SIGKILL");
-    }, timeoutMs);
+      let stderr = "";
+      let killed = false;
+      const startTime = Date.now();
 
-    proc.stderr.on("data", (data: Buffer) => {
-      stderr += data.toString();
-    });
+      logger.info("libreoffice_start", { event: "libreoffice_convert", outputFormat });
 
-    proc.on("error", (err: Error) => {
-      clearTimeout(timer);
-      const duration = Date.now() - startTime;
-      const sanitizedErr = err.message.replace(/password|secret|token/gi, "***");
-      logger.error("libreoffice_error", { event: "libreoffice_convert", duration, error: sanitizedErr });
-      resolve({
-        success: false,
-        error: `Failed to start LibreOffice: ${sanitizedErr}`,
-        stderr,
+      const proc = spawn(/* turbopackIgnore: true */ soffice, args, {
+        stdio: ["ignore", "ignore", "pipe"],
+        timeout: timeoutMs,
       });
-    });
 
-    proc.on("close", async (code: number) => {
-      clearTimeout(timer);
-      const duration = Date.now() - startTime;
-      if (killed) {
-        logger.warn("libreoffice_timeout", { event: "libreoffice_convert", duration });
+      const timer = setTimeout(() => {
+        killed = true;
+        proc.kill("SIGKILL");
+      }, timeoutMs);
+
+      proc.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      proc.on("error", async (err: Error) => {
+        clearTimeout(timer);
+        const duration = Date.now() - startTime;
+        const sanitizedErr = err.message.replace(/password|secret|token/gi, "***");
+        logger.error("libreoffice_error", { event: "libreoffice_convert", duration, error: sanitizedErr });
+        await cleanupProfile();
         resolve({
           success: false,
-          error: "LibreOffice conversion timed out",
+          error: `Failed to start LibreOffice: ${sanitizedErr}`,
           stderr,
         });
-        return;
-      }
-      if (code !== 0) {
-        const sanitizedStderr = stderr.replace(/password|secret|token/gi, "***").slice(0, 500);
-        logger.error("libreoffice_failed", { event: "libreoffice_convert", duration, exitCode: code, stderr: sanitizedStderr });
-        resolve({
-          success: false,
-          error: `LibreOffice conversion failed (exit code ${code})`,
-          stderr,
-        });
-        return;
-      }
+      });
 
-      // Determine expected output file name based on input
-      const baseName = inputPath.split(/[\\/]/).pop() || "output";
-      const outFileName = baseName.replace(/\.[^.]+$/, "") + "." + outputFormat;
-      let outPath = join(/* turbopackIgnore: true */ outputDir, outFileName);
-
-      // Verify the output file exists; if not, attempt a directory scan for any matching file
-      try {
-        await access(outPath);
-      } catch {
-        // Fallback: look for any file in the output directory that matches the expected extension
-        const files = await import("fs/promises").then(m => m.readdir(outputDir, { withFileTypes: true }));
-        const match = files.find(
-          (f) => !f.isDirectory() && f.name.endsWith(`.` + outputFormat)
-        );
-        if (match) {
-          outPath = join(outputDir, match.name);
-        } else {
-          logger.error("libreoffice_output_missing", { event: "libreoffice_convert", duration });
+      proc.on("close", async (code: number) => {
+        clearTimeout(timer);
+        const duration = Date.now() - startTime;
+        if (killed) {
+          logger.warn("libreoffice_timeout", { event: "libreoffice_convert", duration });
+          await cleanupProfile();
           resolve({
             success: false,
-            error: "LibreOffice conversion completed but output file not found",
+            error: "LibreOffice conversion timed out",
             stderr,
           });
           return;
         }
-      }
+        if (code !== 0) {
+          const sanitizedStderr = stderr.replace(/password|secret|token/gi, "***").slice(0, 500);
+          logger.error("libreoffice_failed", { event: "libreoffice_convert", duration, exitCode: code, stderr: sanitizedStderr });
+          await cleanupProfile();
+          resolve({
+            success: false,
+            error: `LibreOffice conversion failed (exit code ${code}): ${sanitizedStderr}`,
+            stderr,
+          });
+          return;
+        }
 
-      logger.info("libreoffice_complete", { event: "libreoffice_convert", duration, outputFormat });
-      resolve({
-        success: true,
-        outputPath: outPath,
+        // Determine expected output file name based on input
+        const baseName = inputPath.split(/[\\/]/).pop() || "output";
+        const outFileName = baseName.replace(/\.[^.]+$/, "") + "." + outputFormat;
+        let outPath = join(/* turbopackIgnore: true */ outputDir, outFileName);
+
+        // Verify the output file exists; if not, attempt a directory scan for any matching file
+        try {
+          await access(outPath);
+        } catch {
+          // Fallback: look for any file in the output directory that matches the expected extension
+          const files = await import("fs/promises").then(m => m.readdir(outputDir, { withFileTypes: true }));
+          const match = files.find(
+            (f) => !f.isDirectory() && f.name.endsWith(`.` + outputFormat)
+          );
+          if (match) {
+            outPath = join(outputDir, match.name);
+          } else {
+            logger.error("libreoffice_output_missing", { event: "libreoffice_convert", duration });
+            await cleanupProfile();
+            resolve({
+              success: false,
+              error: "LibreOffice conversion completed but output file not found",
+              stderr,
+            });
+            return;
+          }
+        }
+
+        logger.info("libreoffice_complete", { event: "libreoffice_convert", duration, outputFormat });
+        await cleanupProfile();
+        resolve({
+          success: true,
+          outputPath: outPath,
+        });
       });
-    });
+
+    })();
   });
 }

@@ -29,11 +29,13 @@ RUN apt-get update && \
     libreoffice-draw \
     # Clean up to reduce image size
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && chmod 1777 /tmp /var/tmp
 
 # Set environment for headless LibreOffice
 ENV SAL_USE_VCLPLUGIN=svp
 ENV UNO_PATH=/usr/lib/libreoffice/program
+ENV HOME=/app
 
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
