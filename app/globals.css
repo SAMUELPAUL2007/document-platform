@@ -116,13 +116,39 @@ body {
   position: static;
 }
 
-/* Ad sidebar — hidden by default (mobile/tablet) */
-.tool-page-ad-sidebar {
-  display: none;
+/* ── 300×250 ad: mobile centered, desktop sticky sidebar ── */
+
+.tool-page-sidebar-ad {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
 }
 
-.tool-page-ad-sticky {
-  position: static;
+/* 728×90 ad: hide on narrow mobile */
+.tool-page-bottom-ad {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 767px) {
+  .tool-page-bottom-ad {
+    display: none;
+  }
+}
+
+/* Desktop: 300×250 floats right as sticky sidebar */
+@media (min-width: 1024px) {
+  .tool-page-sidebar-ad {
+    position: sticky;
+    top: 5rem;
+    float: right;
+    width: 300px;
+    flex-shrink: 0;
+    margin-left: 2.5rem;
+    margin-bottom: 1rem;
+    justify-content: flex-start;
+  }
 }
 
 /* Desktop with options panel: two-column layout */
@@ -148,31 +174,3 @@ body {
   }
 }
 
-/* Desktop with ad sidebar: two-column layout (main + ad) */
-@media (min-width: 1024px) {
-  .tool-page-layout--with-ad {
-    flex-direction: row;
-    gap: 2.5rem;
-  }
-  .tool-page-layout--with-ad .tool-page-main {
-    flex: 1;
-    max-width: none;
-    align-self: flex-start;
-  }
-  .tool-page-ad-sidebar {
-    display: block;
-    width: 300px;
-    flex-shrink: 0;
-  }
-  .tool-page-ad-sticky {
-    position: sticky;
-    top: 5rem;
-  }
-}
-
-/* Hide tall ad on smaller screens */
-@media (max-width: 1023px) {
-  .tool-page-ad-sidebar {
-    display: none !important;
-  }
-}

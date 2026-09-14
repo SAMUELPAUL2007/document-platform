@@ -208,7 +208,7 @@ export default function ToolPage({ tool, options: externalOptions, optionsPanel,
   return (
     <main className="bg-surface" role="main">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <div className={`tool-page-layout ${showOptionsPanel ? "tool-page-layout--with-options" : "tool-page-layout--with-ad"}`}>
+        <div className={`tool-page-layout${showOptionsPanel ? " tool-page-layout--with-options" : ""}`}>
           {/* Main tool column */}
           <div className="tool-page-main">
             <div className="text-center mb-8 animate-slide-up">
@@ -344,9 +344,14 @@ export default function ToolPage({ tool, options: externalOptions, optionsPanel,
               </div>
             )}
 
-            {/* Bottom ad — inside main content flow */}
-            <div className="mt-6 flex justify-center">
+            {/* Bottom ad — hidden on mobile via CSS */}
+            <div className="tool-page-bottom-ad">
               <AdSlot placement="tool-bottom" size="728x90" />
+            </div>
+
+            {/* 300x250 ad — mobile: centered below tool area; desktop: sticky sidebar */}
+            <div className="tool-page-sidebar-ad">
+              <AdSlot placement="tool-sidebar" size="300x250" />
             </div>
 
             {/* Related tools — below bottom ad, inside main content flow */}
@@ -394,14 +399,6 @@ export default function ToolPage({ tool, options: externalOptions, optionsPanel,
             </aside>
           )}
 
-          {/* Right-side ad — desktop only, when NO options panel */}
-          {!showOptionsPanel && (
-            <aside className="tool-page-ad-sidebar" aria-label="Advertisement">
-              <div className="tool-page-ad-sticky">
-                <AdSlot placement="tool-sidebar" size="300x250" />
-              </div>
-            </aside>
-          )}
         </div>
       </div>
     </main>
