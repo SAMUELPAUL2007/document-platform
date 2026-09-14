@@ -26,7 +26,6 @@ RUN apt-get update && \
     libreoffice-core \
     libreoffice-writer \
     libreoffice-impress \
-    libreoffice-pdfimport \
     libreoffice-draw \
     # Clean up to reduce image size
     && apt-get clean \
