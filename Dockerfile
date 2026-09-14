@@ -58,8 +58,9 @@ ENV PORT=3000
 # Expose port
 EXPOSE 3000
 
-# Create writable temp directory for conversion jobs
-RUN mkdir -p /app/.tmp && chown appuser:appuser /app/.tmp
+# Create writable cache/config/temp directories for LibreOffice (HOME=/app, user=appuser)
+RUN mkdir -p /app/.cache/dconf /app/.config /app/.tmp && \
+    chown -R appuser:appuser /app/.cache /app/.config /app/.tmp
 
 # Switch to non-root user
 USER appuser
