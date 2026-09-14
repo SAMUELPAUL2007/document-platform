@@ -28,7 +28,6 @@ export default function AdsterraBanner({ adKey, width, height, className = "" }:
     iframe.style.border = "none";
     iframe.style.maxWidth = "100%";
     iframe.style.overflow = "hidden";
-    iframe.setAttribute("sandbox", "allow-scripts");
     iframe.setAttribute("loading", "lazy");
     iframe.setAttribute("title", "Advertisement");
 
