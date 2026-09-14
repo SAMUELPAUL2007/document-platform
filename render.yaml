@@ -4,6 +4,9 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: Dockerfile
+    buildArgs:
+      - key: NEXT_PUBLIC_ADS_ENABLED
+        value: "true"
     envVars:
       - key: NODE_ENV
         value: production

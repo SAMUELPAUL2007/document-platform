@@ -13,6 +13,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Build-time public env vars (inlined by Next.js into client bundle)
+ARG NEXT_PUBLIC_ADS_ENABLED
+ENV NEXT_PUBLIC_ADS_ENABLED=$NEXT_PUBLIC_ADS_ENABLED
+
 # Build Next.js application
 RUN npm run build
 
