@@ -1,5 +1,6 @@
 import ToolPage from "@/components/upload/ToolPage";
 import { getToolById } from "@/lib/tools";
+import { SITE_URL } from "@/lib/constants";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
   description:
     "Combine multiple PDF files into a single document. Free, no signup, no watermarks. Fast and secure online PDF merger.",
   keywords: ["merge PDF", "combine PDF", "PDF merger", "join PDF files"],
+  alternates: {
+    canonical: `${SITE_URL}/merge-pdf`,
+  },
 };
 
 export default function MergePdfPage() {

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getToolById } from "@/lib/tools";
+import { SITE_URL } from "@/lib/constants";
 import PdfToPngClient from "@/components/tool-pages/PdfToPngClient";
 
 const tool = getToolById("pdf-to-png");
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
   description:
     "Convert PDF pages to high-quality PNG images. Free, no signup, no watermarks. Fast and secure online PDF to PNG converter.",
   keywords: ["PDF to PNG", "convert PDF to PNG", "PDF to image", "PDF to picture"],
+  alternates: {
+    canonical: `${SITE_URL}/pdf-to-png`,
+  },
 };
 
 export default function PdfToPngPage() {

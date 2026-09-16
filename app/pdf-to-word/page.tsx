@@ -1,5 +1,6 @@
 import ToolPage from "@/components/upload/ToolPage";
 import { getToolById } from "@/lib/tools";
+import { SITE_URL } from "@/lib/constants";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
   description:
     "Convert PDF documents to editable Word files for free. No signup, no watermarks. Fast and secure online PDF to Word converter.",
   keywords: ["PDF to Word", "convert PDF to DOCX", "free PDF converter"],
+  alternates: {
+    canonical: `${SITE_URL}/pdf-to-word`,
+  },
 };
 
 export default function PdfToWordPage() {

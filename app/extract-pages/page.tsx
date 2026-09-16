@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getToolById } from "@/lib/tools";
+import { SITE_URL } from "@/lib/constants";
 import ExtractPagesClient from "@/components/tool-pages/ExtractPagesClient";
 
 const tool = getToolById("extract-pages");
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
   description:
     "Extract specific pages from a PDF document. Free, no signup, no watermarks. Fast and secure online page extraction.",
   keywords: ["extract PDF pages", "pull pages from PDF", "PDF page extractor"],
+  alternates: {
+    canonical: `${SITE_URL}/extract-pages`,
+  },
 };
 
 export default function ExtractPagesPage() {

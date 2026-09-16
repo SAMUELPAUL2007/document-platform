@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getToolById } from "@/lib/tools";
+import { SITE_URL } from "@/lib/constants";
 import DuplicatePagesClient from "@/components/tool-pages/DuplicatePagesClient";
 
 const tool = getToolById("duplicate-pages");
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
   description:
     "Duplicate specific pages within a PDF document. Free, no signup, no watermarks. Fast and secure online page duplication.",
   keywords: ["duplicate PDF pages", "copy PDF pages", "PDF page duplicator"],
+  alternates: {
+    canonical: `${SITE_URL}/duplicate-pages`,
+  },
 };
 
 export default function DuplicatePagesPage() {

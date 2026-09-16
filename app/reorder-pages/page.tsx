@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getToolById } from "@/lib/tools";
+import { SITE_URL } from "@/lib/constants";
 import ReorderPagesClient from "@/components/tool-pages/ReorderPagesClient";
 
 const tool = getToolById("reorder-pages");
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
   description:
     "Change the order of pages in a PDF document. Free, no signup, no watermarks. Fast and secure online page reordering.",
   keywords: ["reorder PDF pages", "change PDF page order", "PDF page rearrange"],
+  alternates: {
+    canonical: `${SITE_URL}/reorder-pages`,
+  },
 };
 
 export default function ReorderPagesPage() {
