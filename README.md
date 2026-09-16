@@ -53,7 +53,7 @@ All optional — the application works with zero configuration.
 | `RATE_LIMIT_DOWNLOAD_MAX` | `60` | Download rate limit |
 | `RATE_LIMIT_JOB_STATUS_MAX` | `30` | Job status check rate limit |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window (ms) |
-| `NEXT_PUBLIC_SITE_URL` | `https://docvanta.app` | Canonical site URL for SEO |
+| `NEXT_PUBLIC_SITE_URL` | `https://docvanta.onrender.com` | Canonical site URL for SEO |
 
 ## Optional Dependencies
 

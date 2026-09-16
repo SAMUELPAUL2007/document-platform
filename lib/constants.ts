@@ -20,7 +20,7 @@ export const RATE_LIMIT_DOWNLOAD_MAX = envInt("RATE_LIMIT_DOWNLOAD_MAX", 120);
 export const RATE_LIMIT_JOB_STATUS_MAX = envInt("RATE_LIMIT_JOB_STATUS_MAX", 120);
 export const RATE_LIMIT_WINDOW_MS = envInt("RATE_LIMIT_WINDOW_MS", 60_000);
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://docvanta.app";
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://docvanta.onrender.com";
 
 export const ADS_ENABLED = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
 
