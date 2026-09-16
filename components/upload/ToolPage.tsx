@@ -11,6 +11,7 @@ import Link from "next/link";
 import { uploadFiles, pollJobStatus, getDownloadUrl, cancelJobApi } from "@/lib/api";
 import { addActivityEntry } from "@/lib/history";
 import { getToolsByCategory } from "@/lib/tools";
+import { toolSeoData } from "@/lib/seo-data";
 import type { JobStatus } from "@/lib/api";
 import type { ProgressSnapshot } from "@/lib/progress";
 import type { Tool } from "@/lib/tools";
@@ -353,6 +354,94 @@ export default function ToolPage({ tool, options: externalOptions, optionsPanel,
             <div className="tool-page-sidebar-ad">
               <AdSlot placement="tool-sidebar" size="300x250" />
             </div>
+
+            {/* SEO content section */}
+            {toolSeoData[tool.id] && (
+              <div className="mt-10 space-y-10 text-sm text-muted-foreground leading-relaxed">
+                {/* Introduction */}
+                <section>
+                  <p>{toolSeoData[tool.id].intro}</p>
+                </section>
+
+                {/* How to use */}
+                <section>
+                  <h2 className="text-lg font-semibold text-foreground mb-3">How to use this tool</h2>
+                  <ol className="list-decimal list-inside space-y-2">
+                    {toolSeoData[tool.id].howToUse.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                </section>
+
+                {/* Features */}
+                <section>
+                  <h2 className="text-lg font-semibold text-foreground mb-3">What you can do</h2>
+                  <ul className="list-disc list-inside space-y-2">
+                    {toolSeoData[tool.id].features.map((feature, i) => (
+                      <li key={i}>{feature}</li>
+                    ))}
+                  </ul>
+                </section>
+
+                {/* FAQs */}
+                <section>
+                  <h2 className="text-lg font-semibold text-foreground mb-4">Frequently asked questions</h2>
+                  <div className="space-y-4">
+                    {toolSeoData[tool.id].faqs.map((faq, i) => (
+                      <details key={i} className="group rounded-xl border border-border bg-white p-4">
+                        <summary className="font-medium text-foreground cursor-pointer list-none flex items-center justify-between">
+                          {faq.question}
+                          <svg className="w-4 h-4 text-muted-foreground group-open:rotate-180 transition-transform shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </summary>
+                        <p className="mt-3 text-muted-foreground">{faq.answer}</p>
+                      </details>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {/* JSON-LD structured data */}
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  "@context": "https://schema.org",
+                  "@type": "SoftwareApplication",
+                  name: tool.name,
+                  description: tool.description,
+                  url: `https://docvanta.onrender.com${tool.href}`,
+                  applicationCategory: "UtilitiesApplication",
+                  operatingSystem: "Any",
+                  offers: {
+                    "@type": "Offer",
+                    price: "0",
+                    priceCurrency: "USD",
+                  },
+                }),
+              }}
+            />
+            {toolSeoData[tool.id] && (
+              <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                  __html: JSON.stringify({
+                    "@context": "https://schema.org",
+                    "@type": "FAQPage",
+                    mainEntity: toolSeoData[tool.id].faqs.map((faq) => ({
+                      "@type": "Question",
+                      name: faq.question,
+                      acceptedAnswer: {
+                        "@type": "Answer",
+                        text: faq.answer,
+                      },
+                    })),
+                  }),
+                }}
+              />
+            )}
 
             {/* Related tools — below bottom ad, inside main content flow */}
             <div className="mt-6">
