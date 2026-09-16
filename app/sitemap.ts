@@ -27,5 +27,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/contact`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
   ];
 
-  return [...staticPages, ...toolPages, ...legalPages];
+  const guidePages: MetadataRoute.Sitemap = [
+    { url: `${SITE_URL}/guides/reduce-pdf-file-size`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+  ];
+
+  return [...staticPages, ...toolPages, ...legalPages, ...guidePages];
 }
